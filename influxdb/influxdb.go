@@ -88,16 +88,15 @@ func (c *Connection) renderFields(avlData teltonikaparser.AvlData) map[string]in
 		"speed":             avlData.Speed,
 		"priority":          avlData.Priority,
 		"eventID":           avlData.EventID,
-		"ts":                c.renderTimesamp(avlData),
-		//"utimeMs":           avlData.UtimeMs,
-		//"utime":             avlData.Utime,
-
+		"serverTime":        time.Now().UTC().Unix(),
+		//"originalTime":      int64(avlData.Utime), //c.renderTimesamp(avlData),
 	}
 
 	for _, element := range avlData.Elements {
 		IOID := element.IOID
 		if element.Length > 8 {
-			log.Errorf("IOID value too long! Got %d bytes long IOID value! Value: %s", element.Length, hex.EncodeToString(element.Value[:element.Length]))
+			log.Warnf("IOID%d value long! Got %d bytes long IOID value! It will be save as hex string. Value: %s", IOID, element.Length, hex.EncodeToString(element.Value[:element.Length]))
+			fields[fmt.Sprintf("IOID%d", IOID)] = hex.EncodeToString(element.Value)
 		} else {
 			// raw must have 8 bytes to parse it as uint64 so add zero bytes with BigEndian if needed
 			addon := make([]byte, 8-element.Length)
@@ -142,10 +141,10 @@ func (c *Connection) insert(extraTags map[string]string, record teltonikaparser.
 	log.Debugf("Processing %d AVL data record.", len(record.Data))
 	for _, data := range record.Data {
 		fields := c.renderFields(data)
-		//timestamp := c.renderTimesamp(data)
+		timestamp := c.renderTimesamp(data)
 
-		//point, err := client.NewPoint(c.measurement, tags, fields, timestamp)
-		point, err := client.NewPoint(c.measurement, tags, fields)
+		point, err := client.NewPoint(c.measurement, tags, fields, timestamp)
+		//point, err := client.NewPoint(c.measurement, tags, fields)
 		if err != nil {
 			return fmt.Errorf("failed to create new point. %v", err)
 		}
