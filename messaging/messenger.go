@@ -14,14 +14,17 @@ type Messaging struct {
 
 func NewMessaging(ctx context.Context) *Messaging {
 	return &Messaging{
-		ctx: ctx,
+		ctx:       ctx,
+		consumers: make([]CustomerHandler, 0),
 	}
 }
 
 func (m *Messaging) Publish(data interface{}) {
 	log := config.GetLogger(m.ctx)
 
-	for _, customerFunc := range m.consumers {
+	for k, customerFunc := range m.consumers {
+		log.Tracef("Messenger publish. key: %v, len(customers): %d", k, len(m.consumers))
+
 		err := customerFunc(data)
 		if err == nil {
 			// ack

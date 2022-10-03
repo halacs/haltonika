@@ -115,7 +115,7 @@ func (c *Connection) renderTimesamp(avlData teltonikaparser.AvlData) time.Time {
 	return time.UnixMilli(int64(avlData.UtimeMs))
 }
 
-func (c *Connection) insert(extraTags map[string]string, record teltonikaparser.Decoded, avlData teltonikaparser.AvlData) error {
+func (c *Connection) insert(extraTags map[string]string, record teltonikaparser.Decoded) error {
 	log := config.GetLogger(c.ctx)
 
 	tags := c.renderTags(record)
@@ -166,11 +166,10 @@ func (c *Connection) insert(extraTags map[string]string, record teltonikaparser.
 }
 
 func (c *Connection) InsertMessage(record teltonikaparser.Decoded, extraTags map[string]string) error {
-	for _, avlData := range record.Data {
-		err := c.insert(extraTags, record, avlData)
-		if err != nil {
-			return fmt.Errorf("influxdb insert was failed. %v", err)
-		}
+	err := c.insert(extraTags, record)
+	if err != nil {
+		return fmt.Errorf("influxdb insert was failed. %v", err)
 	}
+
 	return nil
 }
