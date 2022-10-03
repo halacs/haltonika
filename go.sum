@@ -57,8 +57,6 @@ github.com/envoyproxy/go-control-plane v0.9.9-0.20201210154907-fd9021fe5dad/go.m
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/filipkroca/b2n v0.0.0-20190805132448-22fb58c69d13 h1:lMUO34eQVril9b541ukr3GVFQd5Pq0vqW2UYDwMaPZU=
 github.com/filipkroca/b2n v0.0.0-20190805132448-22fb58c69d13/go.mod h1:T3yLU0Uo5tiZKq8qKocFNiXRfP+woXS4U6JvhonHcKY=
-github.com/filipkroca/teltonikaparser v0.0.0-20220306184017-d387dc15c2c8 h1:h0d2U4PJh/Q6ZUNGVBSkrCUrFVW+9l6oObXjIZchr5s=
-github.com/filipkroca/teltonikaparser v0.0.0-20220306184017-d387dc15c2c8/go.mod h1:SzwyyZMCuG791uj8o+oPIDuSHz7Iu0xnZPJfIa0ZkjU=
 github.com/frankban/quicktest v1.14.3 h1:FJKSZTDHjyhriyC81FLQ0LY93eSai0ZyR/ZIkd3ZUKE=
 github.com/fsnotify/fsnotify v1.5.4 h1:jRbGcIw6P2Meqdwuo0H1p6JVLbL5DHKAKlYndzMwVZI=
 github.com/fsnotify/fsnotify v1.5.4/go.mod h1:OVB6XrOHzAwXMpEM7uPOzcehqUV2UqJxmVXmkdnm1bU=
@@ -120,6 +118,8 @@ github.com/google/uuid v1.1.2/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+
 github.com/googleapis/gax-go/v2 v2.0.4/go.mod h1:0Wqv26UfaUD9n4G6kQubkQ+KchISgw+vpHVxEJEs9eg=
 github.com/googleapis/gax-go/v2 v2.0.5/go.mod h1:DWXyrwAJ9X0FpwwEdw+IPEYBICEFu5mhpdKc/us6bOk=
 github.com/googleapis/google-cloud-go-testing v0.0.0-20200911160855-bcd43fbb19e8/go.mod h1:dvDLG8qkwmyD9a/MJJN3XJcT3xFxOKAvTZGvuZmac9g=
+github.com/halacs/teltonikaparser v0.0.0-20221003180117-3ce0343fb81a h1:K8/PgJxqmBnbMjU8Aoiz6HOdjW3bixlua1QNjdV96Jg=
+github.com/halacs/teltonikaparser v0.0.0-20221003180117-3ce0343fb81a/go.mod h1:Nn8re6EMm9/ztFy17/hiyV2vSZBV5BtNNui+EjPg7N0=
 github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/hashicorp/hcl v1.0.0 h1:0Anlzjpi4vEasTeNFn2mLJgTSwt0+6sfsiTG8qcWGx4=
