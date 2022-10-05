@@ -54,7 +54,7 @@ func (s *Server) metricsHandler(w http.ResponseWriter, req *http.Request) {
 
 		// Convert map to fields part of influx line protocol (only for humans but ensure same key orders each time by sorting)
 		keys := make([]string, 0)
-		for k, _ := range fieldsMap {
+		for k := range fieldsMap {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
@@ -83,8 +83,9 @@ func (s *Server) Start() {
 	http.HandleFunc("/metrics", s.metricsHandler)
 
 	httpServer := &http.Server{
-		Addr:    url,
-		Handler: nil,
+		Addr:              url,
+		Handler:           nil,
+		ReadHeaderTimeout: 5 * time.Second, // Potential Slowloris Attack if not set
 	}
 
 	go func() {
@@ -100,8 +101,9 @@ func (s *Server) Start() {
 	}()
 
 	<-s.ctx.Done()
-	if err := httpServer.Shutdown(context.Background()); err != nil {
-		// handle err
+	err := httpServer.Shutdown(context.Background())
+	if err != nil {
+		log.Errorf("Failed to stop http server. %v", err)
 	}
 }
 

@@ -36,11 +36,11 @@ func NewConnection(ctx context.Context, cfg *config.InfluxConfig) *Connection {
 	}
 }
 
-func (c *Connection) getInsecureSkipVerify() bool {
+func (c *Connection) GetInsecureSkipVerify() bool {
 	return c.insecureSkipVerify
 }
 
-func (c *Connection) setInsecureSkipVerify(insecureSkipVerify bool) {
+func (c *Connection) SetInsecureSkipVerify(insecureSkipVerify bool) {
 	c.insecureSkipVerify = insecureSkipVerify
 }
 

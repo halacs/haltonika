@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/halacs/haltonika/config"
+	"github.com/sirupsen/logrus"
 	"os"
 	"sync/atomic"
 	"time"
@@ -47,12 +48,18 @@ func NewMetrics(ctx context.Context, fileName string) *Metrics {
 			select {
 			case <-ctx.Done():
 			case <-ticker.C:
-				metrics.save()
+				err := metrics.save()
+				if err != nil {
+					logrus.Errorf("Failed to save metrics. %v", err)
+				}
 			}
 		}
 	}()
 
-	metrics.load()
+	err := metrics.load()
+	if err != nil {
+		logrus.Errorf("Warn to load previously saved metrics. %v", err)
+	}
 
 	return metrics
 }
@@ -157,7 +164,7 @@ func (m *Metrics) save() error {
 		return fmt.Errorf("failed to serialize metric data into json format. %v", err)
 	}
 
-	err = os.WriteFile(m.fileName, jsonData, 0644)
+	err = os.WriteFile(m.fileName, jsonData, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to write metric data into file. %v", err)
 	}

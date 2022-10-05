@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"github.com/filipkroca/teltonikaparser"
-	config3 "github.com/halacs/haltonika/config"
+	cfg "github.com/halacs/haltonika/config"
 	"github.com/sirupsen/logrus"
 	"testing"
 )
@@ -21,21 +21,24 @@ func TestConnect(t *testing.T) {
 	}
 
 	log := logrus.New()
-	influxConfig := &config3.InfluxConfig{
-		Url:         config3.DefaultInfluxDbUrl,
-		Username:    config3.DefaultInfluxDbUserName,
-		Password:    config3.DefaultInfluxDbPassword,
-		Database:    config3.DefaultInfluxDbDatabaseName,
-		Measurement: config3.DefaultInfluxDbMeasurementName,
+	influxConfig := &cfg.InfluxConfig{
+		Url:         cfg.DefaultInfluxDbUrl,
+		Username:    cfg.DefaultInfluxDbUserName,
+		Password:    cfg.DefaultInfluxDbPassword,
+		Database:    cfg.DefaultInfluxDbDatabaseName,
+		Measurement: cfg.DefaultInfluxDbMeasurementName,
 	}
-	config := config3.NewConfig(log, influxConfig, nil, nil) // only the logger is needed in this natsio
-	ctx := context.WithValue(context.Background(), "config", config)
+	config := cfg.NewConfig(log, influxConfig, nil, nil) // only the logger is needed in this natsio
+	ctx := context.WithValue(context.Background(), cfg.ContextConfigKey, config)
 
 	// Run all natsio cases as a separated network connection
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(test *testing.T) {
 			client := NewConnection(ctx, influxConfig)
-			client.Connect()
+			err := client.Connect()
+			if err != nil {
+				logrus.Errorf("Failed to connect to influxdb. %v", err)
+			}
 
 			byteRequest, err := hex.DecodeString(testCase.Request)
 			if err != nil {

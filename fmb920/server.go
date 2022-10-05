@@ -129,7 +129,7 @@ func (s *Server) Start() error {
 				// Send notification about the new decoded packet
 				s.callback(s.ctx, TeltonikaMessage{
 					Decoded:       decoded,
-					SourceAddress: fmt.Sprintf("%s", remote),
+					SourceAddress: remote.String(),
 				})
 			}
 		}
@@ -167,7 +167,7 @@ func (s *Server) isResentPackage(pkg *[]byte) bool {
 
 func (s *Server) isAllowedIMEI(imei string) bool {
 	for _, actualIMEI := range s.allowedIMEIs {
-		if strings.ToLower(imei) == strings.ToLower(actualIMEI) {
+		if strings.EqualFold(imei, actualIMEI) {
 			return true
 		}
 	}

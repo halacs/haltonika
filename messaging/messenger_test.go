@@ -2,7 +2,7 @@ package messaging
 
 import (
 	"context"
-	"github.com/halacs/haltonika/config"
+	cfg "github.com/halacs/haltonika/config"
 	"github.com/sirupsen/logrus"
 	"strings"
 	"testing"
@@ -43,14 +43,14 @@ func TestMessaging(t *testing.T) {
 
 	log := logrus.New()
 	log.SetLevel(logrus.TraceLevel)
-	cfg := config.NewConfig(log, nil, nil, nil) // only the logger is needed in this natsio
+	conf := cfg.NewConfig(log, nil, nil, nil) // only the logger is needed in this natsio
 
 	// Run all natsio cases as a separated network connection
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(test *testing.T) {
 			receivedMessages := make([]string, 0)
 
-			ctx := context.WithValue(context.Background(), config.ContextConfigKey, cfg)
+			ctx := context.WithValue(context.Background(), cfg.ContextConfigKey, conf)
 			messenger := NewMessaging(ctx)
 			messenger.Subscribe(func(data interface{}) error {
 				receivedMessages = append(receivedMessages, data.(string))

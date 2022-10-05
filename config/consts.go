@@ -1,7 +1,16 @@
 package config
 
+type MyKey struct {
+	KeyName string
+}
+
+var (
+	ContextConfigKey = MyKey{
+		KeyName: "config",
+	}
+)
+
 const (
-	ContextConfigKey                       = "config"
 	AppName                                = "haltonika"
 	ViperEnvPrefix                         = AppName
 	Verbose                                = "verbose"

@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"github.com/sirupsen/logrus"
 	"testing"
 )
 
@@ -47,7 +48,10 @@ func TestPersistency(t *testing.T) {
 			ResentPackages:    0,
 		},
 	}
-	m2.load()
+	err = m2.load()
+	if err != nil {
+		logrus.Errorf("Failed to load previously saved metrics. %v", err)
+	}
 
 	// Compare
 

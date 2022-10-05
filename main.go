@@ -58,7 +58,10 @@ func parseConfig() *config.Config {
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
-	viper.BindPFlags(pflag.CommandLine)
+	err = viper.BindPFlags(pflag.CommandLine)
+	if err != nil {
+		log.Errorf("Failed to bindPFlags. %v", err)
+	}
 
 	verbose := viper.GetBool(config.Verbose)
 	debug := viper.GetBool(config.Debug)
