@@ -10,6 +10,9 @@ all: clean build
 env:
 	mkdir -p ${DIST}
 
+clean:
+	rm -rf ${DIST}
+
 lint-env:
 	( which gosec &>/dev/zero && gosec --version | grep -qs $(GOSEC_VERSION) ) || go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION)
 	( which golangci-lint &>/dev/zero && golangci-lint --version | grep -qs $(GOLANGCILINT_VERSION) ) || go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCILINT_VERSION)
@@ -23,14 +26,11 @@ lint: lint-env
 lint-fix: lint-env
 	golangci-lint run -v --fix ./...
 
-test: test-short-ci
+test: test-short
 	go test ${VENDOR} ./...
 
 test-short:
 	go test ${VENDOR} -race -short
-
-clean:
-	rm -rf ${DIST}${APPNAME}
 
 build: env
 	CGO_ENABLED=0 go build -v -o ${DIST}${APPNAME} .
