@@ -1,7 +1,10 @@
+# github.com/basvdlei/gotsmart v0.0.3
+## explicit; go 1.16
+github.com/basvdlei/gotsmart/crc16
 # github.com/filipkroca/b2n v0.0.0-20190805132448-22fb58c69d13
 ## explicit
 github.com/filipkroca/b2n
-# github.com/filipkroca/teltonikaparser v0.0.0-20220306184017-d387dc15c2c8 => github.com/halacs/teltonikaparser v0.0.0-20221003180117-3ce0343fb81a
+# github.com/filipkroca/teltonikaparser v0.0.0-20220306184017-d387dc15c2c8 => github.com/halacs/teltonikaparser v0.0.0-20221005105736-24777e248864
 ## explicit
 github.com/filipkroca/teltonikaparser
 github.com/filipkroca/teltonikaparser/teltonikajson
@@ -89,4 +92,4 @@ gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
-# github.com/filipkroca/teltonikaparser => github.com/halacs/teltonikaparser v0.0.0-20221003180117-3ce0343fb81a
+# github.com/filipkroca/teltonikaparser => github.com/halacs/teltonikaparser v0.0.0-20221005105736-24777e248864
