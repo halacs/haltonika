@@ -57,8 +57,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 ExecStart=/usr/bin/haltonika
-ExecStop=/bin/kill -s STOP $MAINPID
-ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s SIGINT $MAINPID
 User=haltonika
 Group=haltonika
 Restart=always
