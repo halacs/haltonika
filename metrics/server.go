@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -21,6 +22,7 @@ https://github.com/influxdata/telegraf/tree/master/plugins/inputs/http
 */
 type Server struct {
 	ctx       context.Context
+	wg        *sync.WaitGroup
 	stopFunc  context.CancelFunc
 	host      string
 	port      int
@@ -28,8 +30,9 @@ type Server struct {
 	tags      []string
 }
 
-func NewServer(ctx context.Context, cfg *config.MetricsConfig, tags []string, renderers []MetricProvider) *Server {
+func NewServer(ctx context.Context, wg *sync.WaitGroup, cfg *config.MetricsConfig, tags []string, renderers []MetricProvider) *Server {
 	return &Server{
+		wg:        wg,
 		host:      cfg.Host,
 		port:      cfg.Port,
 		ctx:       ctx,
@@ -88,7 +91,10 @@ func (s *Server) Start() {
 		ReadHeaderTimeout: 5 * time.Second, // Potential Slowloris Attack if not set
 	}
 
+	s.wg.Add(1)
 	go func() {
+		defer s.wg.Done()
+
 		err := httpServer.ListenAndServe()
 		if err != nil {
 			if err == http.ErrServerClosed {

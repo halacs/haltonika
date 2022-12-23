@@ -190,8 +190,8 @@ github.com/gorilla/websocket v0.0.0-20170926233335-4201258b820c/go.mod h1:E7qHFY
 github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190118093823-f849b5445de4/go.mod h1:FiyG127CGDf3tlThmgyCl78X/SZQqEOJBCDaAfeWzPs=
 github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0/go.mod h1:8NvIoxWQoOIhqOTXgfV/d3M/q6VIi02HzZEHgUlZvzk=
 github.com/grpc-ecosystem/grpc-gateway v1.9.5/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
-github.com/halacs/teltonikaparser v0.0.0-20221005105736-24777e248864 h1:oEPCD8aMvmwUr24P6IlZFUpuzzlO0B6rxTJ9BDUerDc=
-github.com/halacs/teltonikaparser v0.0.0-20221005105736-24777e248864/go.mod h1:Nn8re6EMm9/ztFy17/hiyV2vSZBV5BtNNui+EjPg7N0=
+github.com/halacs/teltonikaparser v0.0.0-20221011092949-c420c3d9416d h1:nqRAvoV+2YPU7aYD//2wya+mwuArS1QztgzM21s/qdA=
+github.com/halacs/teltonikaparser v0.0.0-20221011092949-c420c3d9416d/go.mod h1:Nn8re6EMm9/ztFy17/hiyV2vSZBV5BtNNui+EjPg7N0=
 github.com/hashicorp/consul/api v1.3.0/go.mod h1:MmDNSzIMUjNpY/mQ398R4bk2FnqQLoPndWW5VkKPlCE=
 github.com/hashicorp/consul/sdk v0.3.0/go.mod h1:VKf9jXwCTEY1QZP2MOLRhb5i/I/ssyNV1vwHyQBF0x8=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=

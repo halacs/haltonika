@@ -30,4 +30,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/filipkroca/teltonikaparser => github.com/halacs/teltonikaparser v0.0.0-20221005105736-24777e248864 // /home/gabor/WORK/golang/teltonikaparser
+replace github.com/filipkroca/teltonikaparser => github.com/halacs/teltonikaparser v0.0.0-20221011092949-c420c3d9416d

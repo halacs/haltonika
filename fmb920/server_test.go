@@ -8,7 +8,9 @@ import (
 	metrics2 "github.com/halacs/haltonika/metrics/impl"
 	"github.com/sirupsen/logrus"
 	"net"
+	"sync"
 	"testing"
+	"time"
 )
 
 var (
@@ -48,7 +50,8 @@ func startServer(ctx context.Context, metrics metrics.TeltonikaMetricsInterface,
 	go func() {
 		log := config.GetLogger(ctx)
 
-		server := NewServer(ctx, "127.0.0.1", 9001, allowedIMEIs, metrics, callback)
+		var wg sync.WaitGroup
+		server := NewServer(ctx, &wg, "127.0.0.1", 9001, allowedIMEIs, metrics, callback)
 
 		err := server.Start()
 		if err != nil {
@@ -88,6 +91,11 @@ func TestConnect(t *testing.T) {
 			Request:          "0067cafe0176000f3335303432343036333831373336338e01000001839ed29768000b5629e81c5451d0000000000000000000000b000500500000150400c800004502001d00000500422e9b0018000000cd13f000ce005d00430fd4000100f10000547e0000000001",
 			ExpectedResponse: "0005cafe017601",
 		},
+		{
+			Name:             "Try to decode command response",
+			Request:          "00000000000000370C01060000002F4449313A31204449323A30204449333A302041494E313A302041494E323A313639323420444F313A3020444F323A3101000066E3",
+			ExpectedResponse: "",
+		},
 	}
 
 	log := logrus.New()
@@ -96,7 +104,8 @@ func TestConnect(t *testing.T) {
 	ctx := context.WithValue(context.Background(), config.ContextConfigKey, cfg)
 
 	// Initialize metrics collector
-	metrics := metrics2.NewMetrics(ctx, metricsFilename)
+	var wg sync.WaitGroup
+	metrics := metrics2.NewMetrics(ctx, &wg, metricsFilename)
 	// Create callback function for decoded packets
 	callbackFunc := func(ctx context.Context, message TeltonikaMessage) {
 		log2 := config.GetLogger(ctx)
@@ -133,11 +142,16 @@ func TestConnect(t *testing.T) {
 			// Send request
 			send(ctx, clientConnection, data)
 
-			// Receive response
-			size, buffer := recv(ctx, clientConnection)
-			actualRespStr := hex.EncodeToString(buffer[:size])
-			if actualRespStr != testCase.ExpectedResponse {
-				test.Errorf("Wrong reponse! Expected: %v Actual: %v", testCase.ExpectedResponse, actualRespStr)
+			// Do we expect response?
+			if len(testCase.ExpectedResponse) > 0 {
+				// Receive response
+				size, buffer := recv(ctx, clientConnection)
+				actualRespStr := hex.EncodeToString(buffer[:size])
+				if actualRespStr != testCase.ExpectedResponse {
+					test.Errorf("Wrong reponse! Expected: %v Actual: %v", testCase.ExpectedResponse, actualRespStr)
+				}
+			} else {
+				time.Sleep(time.Second * 1)
 			}
 		})
 	}

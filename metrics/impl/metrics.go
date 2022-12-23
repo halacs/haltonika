@@ -7,12 +7,14 @@ import (
 	"github.com/halacs/haltonika/config"
 	"github.com/sirupsen/logrus"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
 type Metrics struct {
 	ctx      context.Context
+	wg       *sync.WaitGroup
 	values   *persistentMetrics
 	fileName string
 }
@@ -27,9 +29,10 @@ type persistentMetrics struct {
 	ResentPackages    uint64
 }
 
-func NewMetrics(ctx context.Context, fileName string) *Metrics {
+func NewMetrics(ctx context.Context, wg *sync.WaitGroup, fileName string) *Metrics {
 	metrics := &Metrics{
 		ctx:      ctx,
+		wg:       wg,
 		fileName: fileName,
 		values: &persistentMetrics{
 			SentBytes:         0,
@@ -43,7 +46,9 @@ func NewMetrics(ctx context.Context, fileName string) *Metrics {
 	}
 
 	ticker := time.NewTicker(60 * time.Second)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case <-ctx.Done():

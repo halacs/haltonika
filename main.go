@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 )
 
 func parseConfig() *config.Config {
@@ -101,6 +102,8 @@ func parseConfig() *config.Config {
 }
 
 func main() {
+	var wg sync.WaitGroup
+
 	cfg := parseConfig()
 
 	log := cfg.GetLogger()
@@ -138,7 +141,7 @@ func main() {
 	}
 
 	// Initialize metrics collector
-	metrics := mi.NewMetrics(ctx, cfg.GetMetricsConfig().TeltonikaMetricsFileName)
+	metrics := mi.NewMetrics(ctx, &wg, cfg.GetMetricsConfig().TeltonikaMetricsFileName)
 	defer func() {
 		err := metrics.Close()
 		if err != nil {
@@ -150,11 +153,15 @@ func main() {
 		fmt.Sprintf("host=%s", hostname),
 	}
 
-	metricsServer := m.NewServer(ctx, cfg.GetMetricsConfig(), tags, []m.MetricProvider{
+	metricsServer := m.NewServer(ctx, &wg, cfg.GetMetricsConfig(), tags, []m.MetricProvider{
 		metrics,
 	})
 
-	go metricsServer.Start()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		metricsServer.Start()
+	}()
 
 	// Connect to influxdb server
 	err = influxdb.Connect()
@@ -171,7 +178,7 @@ func main() {
 		}
 	}()
 
-	server := fmb920.NewServer(ctx, cfg.GetTeltonikaConfig().Host, cfg.GetTeltonikaConfig().Port, cfg.GetTeltonikaConfig().AllowedIMEIs, metrics, func(ctx context.Context, message fmb920.TeltonikaMessage) {
+	server := fmb920.NewServer(ctx, &wg, cfg.GetTeltonikaConfig().Host, cfg.GetTeltonikaConfig().Port, cfg.GetTeltonikaConfig().AllowedIMEIs, metrics, func(ctx context.Context, message fmb920.TeltonikaMessage) {
 		log := cfg.GetLogger()
 
 		log.Debugf("PACKET ARRIVED: %+v", message)
@@ -188,4 +195,5 @@ func main() {
 
 	<-ctxSignals.Done()
 	log.Infof("Exiting")
+	wg.Wait()
 }
