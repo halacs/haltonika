@@ -81,7 +81,7 @@ func (s *Server) Start() error {
 				if size == 1 && strings.ToLower(hex.EncodeToString(buffer)) == "ff" {
 					value, ok := s.getOnlineDeviceEndpoint(remote)
 					if !ok {
-						log.Warningf("Device not found in the map by %v remote. Ignoring FF package.", remote)
+						log.Debugf("Device not found in the map by %v remote. Ignoring FF package.", remote)
 						continue
 					}
 
