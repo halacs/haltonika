@@ -63,7 +63,7 @@ Group=haltonika
 Restart=always
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=/etc/haltonika/
+ReadWritePaths=/etc/haltonika/ /var/run/haltonika/
 WorkingDirectory=/etc/haltonika/
 PrivateTmp=true
 

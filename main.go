@@ -187,7 +187,8 @@ func main() {
 	}
 
 	// Initialize UDS server
-	udsServer := uds.NewUdsServer(ctx, "TODO", "/home/gabor/") // TODO: fix device ID - should be able to deal with many devices
+	deviceID := "350424063817363" // TODO: fix device ID - should be able to deal with many devices (wrapper!?)
+	udsServer := uds.NewUdsServer(ctx, deviceID, "/var/run/haltonika/")
 	defer func() {
 		err := udsServer.Stop()
 		if err != nil {
@@ -199,8 +200,18 @@ func main() {
 		log.Errorf("failed to start UDS server. %v", err)
 	}
 	// https://wiki.teltonika-gps.com/view/FMB920_SMS/GPRS_Commands
-	udsServer.SetFromDeviceChannel(server.GetCommandResponseChannel())
-	udsServer.SetToDeviceChannel(server.GetCommandRequestChannel())
+	fromChannel, err := server.GetCommandResponseChannel(deviceID)
+	if err != nil {
+		log.Errorf("Response channel not found for device %s. %v", deviceID, err)
+	} else {
+		udsServer.SetFromDeviceChannel(fromChannel)
+	}
+	toChannel, err := server.GetCommandRequestChannel(deviceID)
+	if err != nil {
+		log.Errorf("Request channel not found for %s deivce. %v", deviceID, err)
+	} else {
+		udsServer.SetToDeviceChannel(toChannel)
+	}
 
 	<-ctxSignals.Done()
 	log.Infof("Exiting")

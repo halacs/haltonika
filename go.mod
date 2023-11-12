@@ -1,6 +1,6 @@
 module github.com/halacs/haltonika
 
-go 1.19
+go 1.21
 
 require (
 	github.com/filipkroca/teltonikaparser v0.0.0-20220306184017-d387dc15c2c8

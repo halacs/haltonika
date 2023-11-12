@@ -8,6 +8,7 @@ import (
 	"github.com/halacs/haltonika/config"
 	metrics2 "github.com/halacs/haltonika/metrics"
 	"net"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -229,10 +230,22 @@ func (s *Server) Stop() error {
 	return nil
 }
 
-func (s *Server) GetCommandResponseChannel() chan string {
-	return s.commandResponses
+func (s *Server) GetCommandResponseChannel(deviceID string) (chan string, error) {
+	if !slices.Contains(s.allowedIMEIs, deviceID) {
+		return nil, fmt.Errorf("%s device ID is not on the allowed list", deviceID)
+	}
+
+	// TODO lookup the right channel
+
+	return s.commandResponses, nil
 }
 
-func (s *Server) GetCommandRequestChannel() chan string {
-	return s.commandRequests
+func (s *Server) GetCommandRequestChannel(deviceID string) (chan string, error) {
+	if !slices.Contains(s.allowedIMEIs, deviceID) {
+		return nil, fmt.Errorf("%s device ID is not on the allowed list", deviceID)
+	}
+
+	// TODO lookup the right channel
+
+	return s.commandRequests, nil
 }
