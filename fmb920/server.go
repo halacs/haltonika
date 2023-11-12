@@ -228,3 +228,11 @@ func (s *Server) Stop() error {
 	s.stopFunc = nil
 	return nil
 }
+
+func (s *Server) GetCommandResponseChannel() chan string {
+	return s.commandResponses
+}
+
+func (s *Server) GetCommandRequestChannel() chan string {
+	return s.commandRequests
+}

@@ -7,9 +7,9 @@ import (
 	"github.com/halacs/haltonika/config"
 	"github.com/halacs/haltonika/fmb920"
 	influxdb2 "github.com/halacs/haltonika/influxdb"
-	"github.com/halacs/haltonika/messaging"
 	m "github.com/halacs/haltonika/metrics"
 	mi "github.com/halacs/haltonika/metrics/impl"
+	"github.com/halacs/haltonika/uds"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -116,28 +116,20 @@ func main() {
 	defer stop()
 	ctx := context.WithValue(context.Background(), config.ContextConfigKey, cfg)
 
-	// Initialize Influxdb connection
+	// Initialize InfluxDB connection
 	influxdb := influxdb2.NewConnection(ctx, cfg.GetInfluxConfig())
-
-	// Initialize messaging subsystem
-	messenger := messaging.NewMessaging(ctx)
-	// Subscribe function knows how to store data into influxdb
-	messenger.Subscribe(func(data interface{}) error {
-		message := data.(fmb920.TeltonikaMessage)
-		// Insert new record into influxdb
-		tags := map[string]string{
-			influxdb2.SourceTag: message.SourceAddress,
-		}
-		err := influxdb.InsertMessage(message.Decoded, tags)
+	defer func() {
+		err := influxdb.Close()
 		if err != nil {
-			return fmt.Errorf("failed to persist data. %v", err)
+			log.Errorf("Failed to close influxdb connection. %v", err)
 		}
-		return nil
-	})
+	}()
 
-	hostname, err := os.Hostname()
+	// Connect to InfluxDB server
+	err := influxdb.Connect()
 	if err != nil {
-		log.Errorf("Failed to get hostname. %v", err)
+		log.Fatalf("Failed to open influxdb connection. %v", err)
+		os.Exit(1)
 	}
 
 	// Initialize metrics collector
@@ -149,6 +141,10 @@ func main() {
 		}
 	}()
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Errorf("Failed to get hostname. %v", err)
+	}
 	tags := []string{
 		fmt.Sprintf("host=%s", hostname),
 	}
@@ -163,35 +159,48 @@ func main() {
 		metricsServer.Start()
 	}()
 
-	// Connect to influxdb server
-	err = influxdb.Connect()
-	if err != nil {
-		log.Fatalf("Failed to open influxdb connection. %v", err)
-		os.Exit(1)
-	}
-
-	// Always close influxdb connection
-	defer func() {
-		err := influxdb.Close()
-		if err != nil {
-			log.Errorf("Failed to close influxdb connection. %v", err)
-		}
-	}()
-
+	// Initialize new Teltonika server
 	server := fmb920.NewServer(ctx, &wg, cfg.GetTeltonikaConfig().Host, cfg.GetTeltonikaConfig().Port, cfg.GetTeltonikaConfig().AllowedIMEIs, metrics, func(ctx context.Context, message fmb920.TeltonikaMessage) {
 		log := cfg.GetLogger()
 
 		log.Debugf("PACKET ARRIVED: %+v", message)
 
-		// Forward data internally for further processing
-		messenger.Publish(message)
+		// Insert new record into InfluxDB
+		tags := map[string]string{
+			influxdb2.SourceTag: message.SourceAddress,
+		}
+		err := influxdb.InsertMessage(message.Decoded, tags)
+		if err != nil {
+			log.Errorf("Failed to close influxdb connection. %v", err)
+		}
 	})
-
+	defer func() {
+		err := server.Stop()
+		if err != nil {
+			log.Errorf("Failed to stop Teltonika server. %v", err)
+		}
+	}()
 	// Start Teltonika server
 	err = server.Start()
 	if err != nil {
 		log.Errorf("Failed to start Teltonika server. %v", err)
 	}
+
+	// Initialize UDS server
+	udsServer := uds.NewUdsServer(ctx, "TODO", "/home/gabor/") // TODO: fix device ID - should be able to deal with many devices
+	defer func() {
+		err := udsServer.Stop()
+		if err != nil {
+			log.Errorf("Failed to stop UDS server. %v", err)
+		}
+	}()
+	err = udsServer.Start()
+	if err != nil {
+		log.Errorf("failed to start UDS server. %v", err)
+	}
+	// https://wiki.teltonika-gps.com/view/FMB920_SMS/GPRS_Commands
+	udsServer.SetFromDeviceChannel(server.GetCommandResponseChannel())
+	udsServer.SetToDeviceChannel(server.GetCommandRequestChannel())
 
 	<-ctxSignals.Done()
 	log.Infof("Exiting")
