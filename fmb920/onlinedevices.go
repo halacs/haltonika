@@ -1,17 +1,25 @@
 package fmb920
 
 import (
+	"fmt"
 	"github.com/halacs/haltonika/config"
 	"net"
 	"time"
 )
 
-func (s *Server) markDeviceOnline(remote *net.UDPAddr, imei string) {
+func (s *Server) markDeviceOnline(remote *net.UDPAddr, imei string) error {
 	s.devicesByIMEI.Store(remote.String(), &DevicesWithTimeout{
 		Imei:      imei,
 		Remote:    remote,
 		Timestamp: time.Now(),
 	})
+
+	_, err := s.udsServer.KeepAlive(imei)
+	if err != nil {
+		return fmt.Errorf("failed to keep alive %s device. %v", imei, err)
+	}
+
+	return nil
 }
 
 func (s *Server) cleanupDevicesOnline() {

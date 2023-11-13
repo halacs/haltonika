@@ -6,6 +6,7 @@ import (
 	"github.com/halacs/haltonika/config"
 	"github.com/halacs/haltonika/metrics"
 	metrics2 "github.com/halacs/haltonika/metrics/impl"
+	"github.com/halacs/haltonika/uds"
 	"github.com/sirupsen/logrus"
 	"net"
 	"sync"
@@ -46,12 +47,12 @@ func recv(ctx context.Context, conn *net.UDPConn) (int, []byte) {
 	return size, buffer
 }
 
-func startServer(ctx context.Context, metrics metrics.TeltonikaMetricsInterface, callback PacketArrivedCallback) {
+func startServer(ctx context.Context, udsServer uds.MultiServerInterface, metrics metrics.TeltonikaMetricsInterface, callback PacketArrivedCallback) {
 	go func() {
 		log := config.GetLogger(ctx)
 
 		var wg sync.WaitGroup
-		server := NewServer(ctx, &wg, "127.0.0.1", 9001, allowedIMEIs, metrics, callback)
+		server := NewServer(ctx, &wg, "127.0.0.1", 9001, allowedIMEIs, udsServer, metrics, callback)
 
 		err := server.Start()
 		if err != nil {
@@ -105,6 +106,7 @@ func TestConnect(t *testing.T) {
 
 	// Initialize metrics collector
 	var wg sync.WaitGroup
+	udsServer := &uds.MultiServerMock{} // TODO: is this fine this way? Double check it!
 	metrics := metrics2.NewMetrics(ctx, &wg, metricsFilename)
 	// Create callback function for decoded packets
 	callbackFunc := func(ctx context.Context, message TeltonikaMessage) {
@@ -112,7 +114,7 @@ func TestConnect(t *testing.T) {
 		log2.Infof("New decoded packet: %+v", message)
 	}
 	// Start server to be tested"cof
-	startServer(ctx, metrics, callbackFunc)
+	startServer(ctx, udsServer, metrics, callbackFunc)
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(test *testing.T) {

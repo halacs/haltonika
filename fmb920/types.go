@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/filipkroca/teltonikaparser"
 	metrics2 "github.com/halacs/haltonika/metrics"
+	"github.com/halacs/haltonika/uds"
 	"net"
 	"sync"
 	"time"
@@ -36,14 +37,17 @@ type Server struct {
 	ctx          context.Context
 	localCtx     context.Context
 	stopFunc     context.CancelFunc
+	udsServer    uds.MultiServerInterface
 
 	// To check if we receive a packet more times
 	processedPackets map[string]time.Time
 
 	// Online devices by IMEI
-	devicesByIMEI        sync.Map
-	devicesByImeitimeout time.Duration
+	devicesByIMEI                 sync.Map
+	devicesByImeitimeout          time.Duration
+	requestCommandChannelsByIMEI  sync.Map
+	responseCommandChannelsByIMEI sync.Map
 
-	commandResponses chan string
-	commandRequests  chan string
+	//commandResponses chan string
+	//commandRequests  chan string
 }

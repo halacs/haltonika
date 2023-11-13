@@ -17,6 +17,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"time"
 )
 
 func parseConfig() *config.Config {
@@ -101,39 +102,19 @@ func parseConfig() *config.Config {
 	return cfg
 }
 
-func main() {
-	var wg sync.WaitGroup
-
-	cfg := parseConfig()
-
-	log := cfg.GetLogger()
-	log.Tracef("Used InfluxDB client configuration: %+v", cfg.GetInfluxConfig())
-	log.Tracef("Used Teltonika server configuration: %+v", cfg.GetTeltonikaConfig())
-	log.Tracef("Used metrics configuration: %+v", cfg.GetMetricsConfig())
-
-	// Initialize context
-	ctxSignals, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-	ctx := context.WithValue(context.Background(), config.ContextConfigKey, cfg)
-
-	// Initialize InfluxDB connection
-	influxdb := influxdb2.NewConnection(ctx, cfg.GetInfluxConfig())
-	defer func() {
-		err := influxdb.Close()
-		if err != nil {
-			log.Errorf("Failed to close influxdb connection. %v", err)
-		}
-	}()
-
-	// Connect to InfluxDB server
+func initializeInfluxDB(ctx context.Context, log *logrus.Logger, cfg *config.InfluxConfig) *influxdb2.Connection {
+	influxdb := influxdb2.NewConnection(ctx, cfg)
 	err := influxdb.Connect()
 	if err != nil {
 		log.Fatalf("Failed to open influxdb connection. %v", err)
 		os.Exit(1)
 	}
 
-	// Initialize metrics collector
-	metrics := mi.NewMetrics(ctx, &wg, cfg.GetMetricsConfig().TeltonikaMetricsFileName)
+	return influxdb
+}
+
+func initializeMetricServer(ctx context.Context, log *logrus.Logger, wg *sync.WaitGroup, cfg *config.MetricsConfig) *mi.Metrics {
+	metrics := mi.NewMetrics(ctx, wg, cfg.TeltonikaMetricsFileName)
 	defer func() {
 		err := metrics.Close()
 		if err != nil {
@@ -149,18 +130,54 @@ func main() {
 		fmt.Sprintf("host=%s", hostname),
 	}
 
-	metricsServer := m.NewServer(ctx, &wg, cfg.GetMetricsConfig(), tags, []m.MetricProvider{
+	metricsServer := m.NewServer(ctx, wg, cfg, tags, []m.MetricProvider{
 		metrics,
 	})
+	metricsServer.Start()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		metricsServer.Start()
+	return metrics
+}
+
+func initializeUdsServer(ctx context.Context, log *logrus.Logger, basePath string) *uds.MultiServer {
+	udsMultiServer, err := uds.NewMultiServer(ctx, basePath)
+	if err != nil {
+		log.Errorf("Failed to create multi UDS server. %v", err)
+	}
+
+	return udsMultiServer
+}
+
+func main() {
+	var wg sync.WaitGroup
+
+	cfg := parseConfig()
+
+	log := cfg.GetLogger()
+	log.Tracef("Used InfluxDB client configuration: %+v", cfg.GetInfluxConfig())
+	log.Tracef("Used Teltonika server configuration: %+v", cfg.GetTeltonikaConfig())
+	log.Tracef("Used metrics configuration: %+v", cfg.GetMetricsConfig())
+
+	ctxSignals, _ := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx := context.WithValue(ctxSignals, config.ContextConfigKey, cfg)
+
+	influxdb := initializeInfluxDB(ctx, log, cfg.GetInfluxConfig())
+	defer func() {
+		err := influxdb.Close()
+		if err != nil {
+			log.Errorf("Failed to close influxdb connection. %v", err)
+		}
+	}()
+	metrics := initializeMetricServer(ctx, log, &wg, cfg.GetMetricsConfig())
+	udsMultiServer := initializeUdsServer(ctx, log, "/var/run/haltonika/")
+	defer func() {
+		err := udsMultiServer.Stop()
+		if err != nil {
+			log.Errorf("Failed to stop udsMultiServer. %v", err)
+		}
 	}()
 
 	// Initialize new Teltonika server
-	server := fmb920.NewServer(ctx, &wg, cfg.GetTeltonikaConfig().Host, cfg.GetTeltonikaConfig().Port, cfg.GetTeltonikaConfig().AllowedIMEIs, metrics, func(ctx context.Context, message fmb920.TeltonikaMessage) {
+	server := fmb920.NewServer(ctx, &wg, cfg.GetTeltonikaConfig().Host, cfg.GetTeltonikaConfig().Port, cfg.GetTeltonikaConfig().AllowedIMEIs, udsMultiServer, metrics, func(ctx context.Context, message fmb920.TeltonikaMessage) {
 		log := cfg.GetLogger()
 
 		log.Debugf("PACKET ARRIVED: %+v", message)
@@ -181,39 +198,14 @@ func main() {
 		}
 	}()
 	// Start Teltonika server
-	err = server.Start()
+	err := server.Start()
 	if err != nil {
 		log.Errorf("Failed to start Teltonika server. %v", err)
 	}
 
-	// Initialize UDS server
-	deviceID := "350424063817363" // TODO: fix device ID - should be able to deal with many devices (wrapper!?)
-	udsServer := uds.NewUdsServer(ctx, deviceID, "/var/run/haltonika/")
-	defer func() {
-		err := udsServer.Stop()
-		if err != nil {
-			log.Errorf("Failed to stop UDS server. %v", err)
-		}
-	}()
-	err = udsServer.Start()
-	if err != nil {
-		log.Errorf("failed to start UDS server. %v", err)
-	}
-	// https://wiki.teltonika-gps.com/view/FMB920_SMS/GPRS_Commands
-	fromChannel, err := server.GetCommandResponseChannel(deviceID)
-	if err != nil {
-		log.Errorf("Response channel not found for device %s. %v", deviceID, err)
-	} else {
-		udsServer.SetFromDeviceChannel(fromChannel)
-	}
-	toChannel, err := server.GetCommandRequestChannel(deviceID)
-	if err != nil {
-		log.Errorf("Request channel not found for %s deivce. %v", deviceID, err)
-	} else {
-		udsServer.SetToDeviceChannel(toChannel)
-	}
-
 	<-ctxSignals.Done()
 	log.Infof("Exiting")
+	time.Sleep(time.Second * 3)
 	wg.Wait()
+	log.Infof("Bye")
 }

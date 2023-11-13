@@ -79,6 +79,19 @@ func (s *Server) metricsHandler(w http.ResponseWriter, req *http.Request) {
 func (s *Server) Start() {
 	log := config.GetLogger(s.ctx)
 
+	s.wg.Add(1)
+	go func() {
+		defer func() {
+			s.wg.Done()
+		}()
+		s.run()
+		log.Debugf("Metric server terminated")
+	}()
+}
+
+func (s *Server) run() {
+	log := config.GetLogger(s.ctx)
+
 	url := fmt.Sprintf("%s:%d", s.host, s.port)
 
 	log.Infof("Start metrics server on %s", url)
@@ -93,7 +106,9 @@ func (s *Server) Start() {
 
 	s.wg.Add(1)
 	go func() {
-		defer s.wg.Done()
+		defer func() {
+			s.wg.Done()
+		}()
 
 		err := httpServer.ListenAndServe()
 		if err != nil {
@@ -107,7 +122,7 @@ func (s *Server) Start() {
 	}()
 
 	<-s.ctx.Done()
-	err := httpServer.Shutdown(context.Background())
+	err := httpServer.Shutdown(s.ctx)
 	if err != nil {
 		log.Errorf("Failed to stop http server. %v", err)
 	}

@@ -13,16 +13,12 @@ import (
 	"sync"
 )
 
-const (
-	protocol = "unix"
-)
-
 type Server struct {
 	ctx               context.Context
 	deviceConnections []net.Conn
 	quit              chan interface{}
 	wg                sync.WaitGroup
-	listener          net.Listener
+	listener          *net.UnixListener
 	fromDeviceChannel chan string
 	toDeviceChannel   chan string
 	log               *logrus.Entry
@@ -78,8 +74,13 @@ func (us *Server) getUdsName() (string, error) {
 		return "", fmt.Errorf("deviceID must be specified")
 	}
 
-	path := filepath.Join(us.basePath, fmt.Sprintf("haltonika-%s", us.deviceID))
+	path := filepath.Join(us.basePath, us.deviceID)
 	return path, nil
+}
+
+func (us *Server) GetSocketPath() (string, error) {
+	socketPath, err := us.getUdsName()
+	return socketPath, err
 }
 
 func (us *Server) getDeviceConnections() []net.Conn {
@@ -143,11 +144,6 @@ func (us *Server) Stop() error {
 		us.log.Errorf("Failed to close listener. %v", err)
 	}
 
-	err = us.removeUdsSocket()
-	if err != nil {
-		us.log.Errorf("Failed to remove socket file. %v", err)
-	}
-
 	us.wg.Wait()
 
 	return err
@@ -182,11 +178,17 @@ func (us *Server) Start() error {
 	}
 
 	// Open UDS
-	us.log.Infof("Opening socket: %s://%s", protocol, sockAddr)
-	us.listener, err = net.Listen(protocol, sockAddr)
+	const protocol = "unix"
+	us.log.Debugf("Opening socket: %s", sockAddr)
+	laddr, err := net.ResolveUnixAddr(protocol, sockAddr)
+	if err != nil {
+		return fmt.Errorf("failed to resolve unix addr. %v", err)
+	}
+	us.listener, err = net.ListenUnix(protocol, laddr)
 	if err != nil {
 		return fmt.Errorf("failed to open socket. %v", err)
 	}
+	us.listener.SetUnlinkOnClose(true)
 
 	us.wg.Add(1)
 	go us.acceptConnections()
@@ -195,13 +197,18 @@ func (us *Server) Start() error {
 }
 
 func (us *Server) acceptConnections() {
-	defer us.wg.Done()
+	defer func() {
+		us.wg.Done()
+	}()
 
 	// Device to sockets (one to many)
 	us.wg.Add(1)
 	go func() {
+		defer func() {
+			us.wg.Done()
+		}()
+
 		us.handleChannelToSocketDirection()
-		us.wg.Done()
 	}()
 
 	for {
@@ -216,13 +223,16 @@ func (us *Server) acceptConnections() {
 		} else {
 			us.wg.Add(1)
 			go func() { // sockets to device (many to one)
+				defer func() {
+					us.wg.Done()
+				}()
+
 				us.addDeviceConnection(conn)
 				us.handleSocketToChannelDirection(conn)
 				err := us.removeDeviceConnections(conn)
 				if err != nil {
 					us.log.Errorf("%v", err)
 				}
-				us.wg.Done()
 			}()
 		}
 

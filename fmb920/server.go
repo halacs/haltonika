@@ -7,6 +7,7 @@ import (
 	"github.com/filipkroca/teltonikaparser"
 	"github.com/halacs/haltonika/config"
 	metrics2 "github.com/halacs/haltonika/metrics"
+	"github.com/halacs/haltonika/uds"
 	"net"
 	"slices"
 	"strings"
@@ -14,7 +15,7 @@ import (
 	"time"
 )
 
-func NewServer(ctx context.Context, wg *sync.WaitGroup, host string, port int, allowedIMEIs []string, metrics metrics2.TeltonikaMetricsInterface, callback PacketArrivedCallback) *Server {
+func NewServer(ctx context.Context, wg *sync.WaitGroup, host string, port int, allowedIMEIs []string, udsServer uds.MultiServerInterface, metrics metrics2.TeltonikaMetricsInterface, callback PacketArrivedCallback) *Server {
 	server := &Server{
 		wg:                   wg,
 		host:                 host,
@@ -26,8 +27,9 @@ func NewServer(ctx context.Context, wg *sync.WaitGroup, host string, port int, a
 		processedPackets:     make(map[string]time.Time),
 		devicesByIMEI:        sync.Map{},
 		devicesByImeitimeout: 5 * time.Minute,
-		commandResponses:     make(chan string),
-		commandRequests:      make(chan string, 1),
+		//commandResponses:     make(chan string),
+		//commandRequests:      make(chan string, 1),
+		udsServer: udsServer,
 	}
 
 	return server
@@ -54,7 +56,9 @@ func (s *Server) Start() error {
 
 	s.wg.Add(1)
 	go func() {
-		defer s.wg.Done()
+		defer func() {
+			s.wg.Done()
+		}()
 
 		// close listener
 		defer func() {
@@ -71,6 +75,9 @@ func (s *Server) Start() error {
 				return
 			default:
 				size, buffer, remote, err := s.receiveBytes(listen)
+				if size <= 0 {
+					continue // context might be cancelled
+				}
 				if err != nil {
 					log.Errorf("failed to read from connection. %v", err)
 					return
@@ -86,26 +93,30 @@ func (s *Server) Start() error {
 						continue
 					}
 
-					log.Debugf("Device with %s IMEI send FF package.", value.Imei)
+					log.Debugf("Device with %s IMEI sent FF package.", value.Imei)
 
-					// Check if there is a command to be sent and if yes send it to the device who send FF just now
-					select {
-					case commandStr := <-s.commandRequests:
-						log.Infof("Command to be sent: %s", commandStr)
-						command, err := teltonikaparser.EncodeCommandRequest(commandStr)
-						if err != nil {
-							log.Errorf("Failed to encode command. %v", err)
-							continue
-						}
+					commandRequests, _, err := s.GetCommandRequestChannel(value.Imei)
+					if err != nil {
+						log.Errorf("Failed to send command response to channel. %v", err)
+					} else {
+						// Check if there is a command to be sent and if yes send it to the device who send FF just now
+						select {
+						case commandStr := <-commandRequests:
+							log.Infof("Command to be sent: %s", commandStr)
+							command, err := teltonikaparser.EncodeCommandRequest(commandStr)
+							if err != nil {
+								log.Errorf("Failed to encode command. %v", err)
+								continue
+							}
 
-						err = s.sendBytes(listen, command, remote)
-						if err != nil {
-							log.Errorf("Failed to send commands's bytes out. %v", err)
+							err = s.sendBytes(listen, command, remote)
+							if err != nil {
+								log.Errorf("Failed to send commands's bytes out. %v", err)
+							}
+						default:
+							log.Tracef("No command to be sent for this remote endpoint, for this device.")
 						}
-					default:
-						log.Tracef("No command to be sent for this remote endpoint, for this device.")
 					}
-
 					continue
 				}
 
@@ -137,9 +148,16 @@ func (s *Server) Start() error {
 					// Forward command response for further processing
 					s.wg.Add(1)
 					go func() { // TODO is this the right way to send it back? Not sure...
-						defer s.wg.Done()
+						defer func() {
+							s.wg.Done()
+						}()
 
-						s.commandResponses <- string(commandResponse.Response)
+						commandResponses, _, err := s.GetCommandResponseChannel(value.Imei)
+						if err != nil {
+							log.Errorf("Failed to send command response to channel. %v", err)
+						} else {
+							commandResponses <- string(commandResponse.Response)
+						}
 					}()
 
 					continue
@@ -157,7 +175,26 @@ func (s *Server) Start() error {
 					continue
 				}
 
-				s.markDeviceOnline(remote, decodedAvl.IMEI)
+				server, _ := s.udsServer.GetServer(decodedAvl.IMEI) // UdsServer is already started
+				if server == nil {
+					socketPath, err := s.startNewUdsServer(decodedAvl.IMEI)
+					if err != nil {
+						log.Errorf("Failed to start new UDS server. %v", err)
+					} else {
+						log.Infof("New UDS server has been started for %s device at %s", decodedAvl.IMEI, socketPath)
+					}
+				} else {
+					socketPath, err := server.GetSocketPath()
+					if err != nil {
+						log.Errorf("%v", err)
+					}
+					log.Tracef("UdsServer for %s device is running at %s. %v", decodedAvl.IMEI, socketPath, server)
+				}
+
+				err = s.markDeviceOnline(remote, decodedAvl.IMEI)
+				if err != nil {
+					log.Errorf("Failed to mark device online. %v", err)
+				}
 
 				// Send response for an AVL
 				err = s.sendBytes(listen, decodedAvl.Response, remote)
@@ -170,7 +207,9 @@ func (s *Server) Start() error {
 				// TODO consider if all after receiving the packet can be done in a separated thread even the response sending
 				s.wg.Add(1)
 				go func() {
-					defer s.wg.Done()
+					defer func() {
+						s.wg.Done()
+					}()
 
 					if s.isResentPackage(&buffer) {
 						log.Warningf("Doubled packet received: %v", buffer)
@@ -188,20 +227,59 @@ func (s *Server) Start() error {
 	return nil
 }
 
+func (s *Server) startNewUdsServer(imei string) (string, error) {
+	log := config.GetLogger(s.ctx)
+
+	requestChannel, _, err := s.GetCommandRequestChannel(imei)
+	if err != nil {
+		return "", fmt.Errorf("failed to start new UDS server for %s device: response channel error. %v", imei, err)
+	}
+
+	responseChannel, _, err := s.GetCommandResponseChannel(imei)
+	if err != nil {
+		return "", fmt.Errorf("failed to start new UDS server for %s device: request channel error. %v", imei, err)
+	}
+
+	server, err := s.udsServer.StartServer(imei, requestChannel, responseChannel)
+	if err != nil {
+		return "", fmt.Errorf("failed to start new UDS server for %s device. %v", imei, err)
+	}
+
+	socketPath, err := server.GetSocketPath()
+	if err != nil {
+		log.Errorf("Failed to get socket path. %v", err)
+	}
+
+	return socketPath, nil
+}
+
 func (s *Server) receiveBytes(listen *net.UDPConn) (int, []byte, *net.UDPAddr, error) {
 	log := config.GetLogger(s.ctx)
 
-	buffer := make([]byte, 10*1024) // TODO find out the right buffer size which is not too big neither too small
-	size, remote, err := listen.ReadFromUDP(buffer)
-	if err != nil {
-		return 0, buffer, remote, err
+	for {
+		select {
+		case <-s.ctx.Done():
+			log.Tracef("receiveBytes returns because of context cancelled")
+			return 0, nil, nil, fmt.Errorf("context cancelled")
+		default:
+			buffer := make([]byte, 10*1024)                                 // TODO find out the right buffer size which is not too big neither too small
+			err := listen.SetReadDeadline(time.Now().Add(10 * time.Second)) // needed because of context cancellation
+			if err != nil {
+				return 0, buffer, nil, fmt.Errorf("failed to set context deadline. %v", err)
+			}
+			size, remote, err := listen.ReadFromUDP(buffer)
+			if err != nil {
+				//return 0, buffer, remote, err
+				continue
+			}
+
+			log.Debugf("%d bytes received from %v", size, remote)
+
+			s.addReceivedBytes(uint64(size))
+
+			return size, buffer[:size], remote, nil
+		}
 	}
-
-	log.Debugf("%d bytes received from %v", size, remote)
-
-	s.addReceivedBytes(uint64(size))
-
-	return size, buffer[:size], remote, nil
 }
 
 func (s *Server) sendBytes(listen *net.UDPConn, data []byte, remote *net.UDPAddr) error {
@@ -230,22 +308,40 @@ func (s *Server) Stop() error {
 	return nil
 }
 
-func (s *Server) GetCommandResponseChannel(deviceID string) (chan string, error) {
-	if !slices.Contains(s.allowedIMEIs, deviceID) {
-		return nil, fmt.Errorf("%s device ID is not on the allowed list", deviceID)
+func (s *Server) GetCommandResponseChannel(imei string) (ch chan string, created bool, err error) {
+	log := config.GetLogger(s.ctx)
+
+	created = false
+
+	if !slices.Contains(s.allowedIMEIs, imei) {
+		return nil, created, fmt.Errorf("%s device ID is not on the allowed list", imei)
 	}
 
-	// TODO lookup the right channel
+	newChan := make(chan string)
+	c, loaded := s.responseCommandChannelsByIMEI.LoadOrStore(imei, newChan) // TODO do we need to implement a cleanup?
+	if !loaded {
+		log.Debugf("New command response channel was made for %s device.", imei)
+		created = true
+	}
 
-	return s.commandResponses, nil
+	return c.(chan string), created, nil
 }
 
-func (s *Server) GetCommandRequestChannel(deviceID string) (chan string, error) {
-	if !slices.Contains(s.allowedIMEIs, deviceID) {
-		return nil, fmt.Errorf("%s device ID is not on the allowed list", deviceID)
+func (s *Server) GetCommandRequestChannel(imei string) (ch chan string, created bool, err error) {
+	log := config.GetLogger(s.ctx)
+
+	created = false
+
+	if !slices.Contains(s.allowedIMEIs, imei) {
+		return nil, created, fmt.Errorf("%s device ID is not on the allowed list", imei)
 	}
 
-	// TODO lookup the right channel
+	newChan := make(chan string)
+	c, loaded := s.requestCommandChannelsByIMEI.LoadOrStore(imei, newChan) // TODO do we need to implement a cleanup?
+	if !loaded {
+		log.Debugf("New command request channel was made for %s device.", imei)
+		created = true
+	}
 
-	return s.commandRequests, nil
+	return c.(chan string), created, nil
 }

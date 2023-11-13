@@ -48,10 +48,13 @@ func NewMetrics(ctx context.Context, wg *sync.WaitGroup, fileName string) *Metri
 	ticker := time.NewTicker(60 * time.Second)
 	wg.Add(1)
 	go func() {
-		defer wg.Done()
+		defer func() {
+			wg.Done()
+		}()
 		for {
 			select {
 			case <-ctx.Done():
+				return
 			case <-ticker.C:
 				err := metrics.save()
 				if err != nil {
@@ -189,7 +192,7 @@ func (m *Metrics) load() error {
 
 	err = json.Unmarshal(jsonData, m.values)
 	if err != nil {
-		return fmt.Errorf("failed unmoarshal metric jason. %v", err)
+		return fmt.Errorf("failed to unmarshal metric json. %v", err)
 	}
 
 	return nil
