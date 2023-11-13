@@ -17,7 +17,6 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
-	"time"
 )
 
 func parseConfig() *config.Config {
@@ -57,6 +56,8 @@ func parseConfig() *config.Config {
 	flag.String(config.MetricsListeningIp, config.DefaultMetricsListeningIP, "Metrics server listening IP address (IPv4 or IPv6)")
 	flag.Int(config.MetricsListeningPort, config.DefaultMetricsListeningPort, "Metrics server listening port")
 	flag.String(config.MetricsTeltonikaMetricsFileName, config.DefaultMetricsTeltonikaMetricsFileName, "File where metrics are written")
+	// UDS Server configs
+	flag.String(config.UdsServerConfigBasePath, config.DefaultUdsServerConfigBasePath, "Directory where unix domain sockets for each devices will be opened")
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
@@ -98,7 +99,11 @@ func parseConfig() *config.Config {
 		TeltonikaMetricsFileName: viper.GetString(config.MetricsTeltonikaMetricsFileName),
 	}
 
-	cfg := config.NewConfig(log, influxConfig, teltonikaConfig, metricsConfig)
+	udsServerConfig := &config.UdsServerConfig{
+		BasePath: viper.GetString(config.UdsServerConfigBasePath),
+	}
+
+	cfg := config.NewConfig(log, influxConfig, teltonikaConfig, metricsConfig, udsServerConfig)
 	return cfg
 }
 
@@ -138,8 +143,8 @@ func initializeMetricServer(ctx context.Context, log *logrus.Logger, wg *sync.Wa
 	return metrics
 }
 
-func initializeUdsServer(ctx context.Context, log *logrus.Logger, basePath string) *uds.MultiServer {
-	udsMultiServer, err := uds.NewMultiServer(ctx, basePath)
+func initializeUdsServer(ctx context.Context, log *logrus.Logger, cfg *config.UdsServerConfig) *uds.MultiServer {
+	udsMultiServer, err := uds.NewMultiServer(ctx, cfg.BasePath)
 	if err != nil {
 		log.Errorf("Failed to create multi UDS server. %v", err)
 	}
@@ -168,7 +173,7 @@ func main() {
 		}
 	}()
 	metrics := initializeMetricServer(ctx, log, &wg, cfg.GetMetricsConfig())
-	udsMultiServer := initializeUdsServer(ctx, log, "/var/run/haltonika/")
+	udsMultiServer := initializeUdsServer(ctx, log, cfg.GetUdsServerConfig())
 	defer func() {
 		err := udsMultiServer.Stop()
 		if err != nil {
@@ -205,7 +210,6 @@ func main() {
 
 	<-ctxSignals.Done()
 	log.Infof("Exiting")
-	time.Sleep(time.Second * 3)
 	wg.Wait()
 	log.Infof("Bye")
 }

@@ -10,14 +10,16 @@ type Config struct {
 	influxConfig    *InfluxConfig
 	teltonikaConfig *TeltonikaConfig
 	metricsConfig   *MetricsConfig
+	udsServerConfig *UdsServerConfig
 }
 
-func NewConfig(log *logrus.Logger, influxConfig *InfluxConfig, teltonikaConfig *TeltonikaConfig, metricsConfig *MetricsConfig) *Config {
+func NewConfig(log *logrus.Logger, influxConfig *InfluxConfig, teltonikaConfig *TeltonikaConfig, metricsConfig *MetricsConfig, udsServerConfig *UdsServerConfig) *Config {
 	return &Config{
 		log:             log,
 		influxConfig:    influxConfig,
 		teltonikaConfig: teltonikaConfig,
 		metricsConfig:   metricsConfig,
+		udsServerConfig: udsServerConfig,
 	}
 }
 
@@ -31,6 +33,10 @@ func (c *Config) GetTeltonikaConfig() *TeltonikaConfig {
 
 func (c *Config) GetMetricsConfig() *MetricsConfig {
 	return c.metricsConfig
+}
+
+func (c *Config) GetUdsServerConfig() *UdsServerConfig {
+	return c.udsServerConfig
 }
 
 func (c *Config) GetLogger() *logrus.Logger {

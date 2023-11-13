@@ -101,7 +101,7 @@ func TestConnect(t *testing.T) {
 
 	log := logrus.New()
 	log.SetLevel(logrus.TraceLevel)
-	cfg := config.NewConfig(log, nil, nil, nil)
+	cfg := config.NewConfig(log, nil, nil, nil, nil)
 	ctx := context.WithValue(context.Background(), config.ContextConfigKey, cfg)
 
 	// Initialize metrics collector

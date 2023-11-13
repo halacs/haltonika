@@ -137,9 +137,16 @@ func (us *Server) SetToDeviceChannel(c chan string) {
 }
 
 func (us *Server) Stop() error {
+	socketPath, err := us.getUdsName()
+	if err != nil {
+		us.log.Errorf("%v", err)
+	}
+
+	us.log.Infof("Shutdown server of %s device at %s", us.deviceID, socketPath)
+
 	close(us.quit)
 
-	err := us.listener.Close()
+	err = us.listener.Close()
 	if err != nil {
 		us.log.Errorf("Failed to close listener. %v", err)
 	}

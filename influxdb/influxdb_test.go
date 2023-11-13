@@ -28,7 +28,7 @@ func TestConnect(t *testing.T) {
 		Database:    cfg.DefaultInfluxDbDatabaseName,
 		Measurement: cfg.DefaultInfluxDbMeasurementName,
 	}
-	config := cfg.NewConfig(log, influxConfig, nil, nil) // only the logger is needed in this natsio
+	config := cfg.NewConfig(log, influxConfig, nil, nil, nil) // only the logger is needed in this natsio
 	ctx := context.WithValue(context.Background(), cfg.ContextConfigKey, config)
 
 	// Run all natsio cases as a separated network connection

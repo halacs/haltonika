@@ -26,6 +26,7 @@ const (
 	MetricsListeningIp                     = "metricsip"
 	MetricsListeningPort                   = "metricsport"
 	MetricsTeltonikaMetricsFileName        = "mp"
+	UdsServerConfigBasePath                = "udsbasepath"
 	DefaultDebug                           = false
 	DefaultVerbose                         = false
 	DefaultInfluxDbUrl                     = "http://localhost:8086"
@@ -39,4 +40,5 @@ const (
 	DefaultMetricsListeningIP              = "0.0.0.0"
 	DefaultMetricsListeningPort            = 9161
 	DefaultMetricsTeltonikaMetricsFileName = AppName + ".met"
+	DefaultUdsServerConfigBasePath         = "/var/run/haltonika/"
 )

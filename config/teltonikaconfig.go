@@ -11,3 +11,7 @@ type MetricsConfig struct {
 	Port                     int
 	TeltonikaMetricsFileName string
 }
+
+type UdsServerConfig struct {
+	BasePath string
+}

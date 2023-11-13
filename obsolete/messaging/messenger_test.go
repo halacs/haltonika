@@ -43,7 +43,7 @@ func TestMessaging(t *testing.T) {
 
 	log := logrus.New()
 	log.SetLevel(logrus.TraceLevel)
-	conf := cfg.NewConfig(log, nil, nil, nil) // only the logger is needed in this natsio
+	conf := cfg.NewConfig(log, nil, nil, nil, nil) // only the logger is needed in this natsio
 
 	// Run all natsio cases as a separated network connection
 	for _, testCase := range testCases {
