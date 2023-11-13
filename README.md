@@ -24,6 +24,17 @@ Usage of ./haltonika:
       --verbose              Set log level to verbose
 ```
 
+Haltonika opens unix domain socket for each connected Teltonika GPS device. By default, sockets are located under the /var/run/haltonika directory. You can communicate with your GPS devices with SMS commands.
+
+```
+halacs@halacs:~$ sudo socat /var/run/haltonika/350424063817363 -
+getver
+Ver:03.27.07_00 GPS:AXN_5.1.9 Hw:FMB920 Mod:13 IMEI:350424063817363 Init:2023-8-8 5:24 Uptime:8418658 MAC:001E427ED0D9 SPC:1(0) AXL:1 OBD:0 BL:1.10 BT:4
+getstatus
+Data Link: 1 GPRS: 1 Phone: 0 SIM: 0 OP: 21630 Signal: 4 NewSMS: 0 Roaming: 0 SMSFull: 0 LAC: 93 Cell ID: 5103 NetType: 1 FwUpd:-65536
+^C
+```
+
 # Build from source
 Build requirements:
 - GO 1.19.1
