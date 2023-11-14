@@ -1,11 +1,11 @@
 name: Golang CI
 
-#on:
-#  push:
-#    branches:
-#      - '*'
-#    tags:
-#      - 'v*.*.*'
+on:
+  push:
+    branches:
+      - '*'
+    tags:
+      - 'v*.*.*'
 
 jobs:
   build:
