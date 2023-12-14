@@ -11,7 +11,7 @@ Haltonika supports configurations from CLI arguments, environment variables as w
 Usage of ./haltonika:
       --database string      InfluxDB database name (default "haltonika")
       --debug                Set log level to debug
-      --imeilist string      IMEI identifiers needs to be processed. Separated by comma. Example: 123456789012345,123456789012345,123456789012345 (default "350424063817363")
+      --imeilist string      IMEI identifiers needs to be processed. Separated by comma. Example: 123456789012345,123456789012345,123456789012345 (default "350424063817363"[https://wiki.teltonika-gps.com/view/FMB920_SMS/GPRS_Commands)
       --listenip string      Teltonika server listening IP address (IPv4 or IPv6) (default "0.0.0.0")
       --listenport int       Teltonika server listening UDP port (default 9160)
       --measurement string   Name of the Influxdb measurement (default "gps")
@@ -67,13 +67,14 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+ExecStartPre=-mkdir /var/run/haltonika
 ExecStart=/usr/bin/haltonika
 ExecStop=/bin/kill -s SIGINT $MAINPID
 User=haltonika
 Group=haltonika
 Restart=always
-NoNewPrivileges=true
-ProtectSystem=strict
+#NoNewPrivileges=true
+#ProtectSystem=strict
 ReadWritePaths=/etc/haltonika/ /var/run/haltonika/
 WorkingDirectory=/etc/haltonika/
 PrivateTmp=true
