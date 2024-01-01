@@ -144,8 +144,7 @@ func initializeMetricServer(ctx context.Context, log *logrus.Logger, wg *sync.Wa
 }
 
 func initializeUdsServer(ctx context.Context, log *logrus.Logger, cfg *config.UdsServerConfig) *uds.MultiServer {
-	var wg sync.WaitGroup
-	udsMultiServer, err := uds.NewMultiServer(ctx, cfg.BasePath, &wg)
+	udsMultiServer, err := uds.NewMultiServer(ctx, cfg.BasePath, log)
 	if err != nil {
 		log.Errorf("Failed to create multi UDS server. %v", err)
 	}

@@ -25,19 +25,24 @@ type MultiServerInterface interface {
 type MultiServer struct {
 	ctx      context.Context
 	servers  map[string]*Server
-	log      logrus.Logger
+	log      *logrus.Logger
 	basePath string
 	lastSeen sync.Map
 	wg       *sync.WaitGroup
 }
 
-func NewMultiServer(ctx context.Context, basePath string, wg *sync.WaitGroup) (*MultiServer, error) {
+func NewMultiServer(ctx context.Context, basePath string, log *logrus.Logger) (*MultiServer, error) {
+	var wg sync.WaitGroup
+
 	ms := &MultiServer{
 		ctx:      ctx,
 		servers:  make(map[string]*Server),
 		basePath: basePath,
-		wg:       wg,
+		wg:       &wg,
+		log:      log,
 	}
+
+	ms.keepAliveChecker()
 
 	return ms, nil
 }
@@ -55,8 +60,6 @@ func (ms *MultiServer) StartServer(deviceID string, toDevice, fromDevice chan st
 	udsServer.SetToDeviceChannel(toDevice)
 
 	ms.setServerForDevice(deviceID, udsServer)
-
-	ms.keepAliveChecker()
 
 	return udsServer, nil
 }
@@ -101,6 +104,7 @@ func (ms *MultiServer) KeepAlive(deviceID string) {
 	key := deviceID
 	value := time.Now()
 	ms.lastSeen.Store(key, value)
+	ms.log.Tracef("multiServer keep alive: %s", deviceID)
 }
 
 func (ms *MultiServer) keepAliveChecker() {
@@ -108,34 +112,44 @@ func (ms *MultiServer) keepAliveChecker() {
 	go func() {
 		defer ms.wg.Done()
 
+		ms.log.Debugf("UDSServer: keep alive checker started")
+
 		ticker := time.NewTicker(checkLastSeenEvery)
-		defer ticker.Stop()
+		defer func() {
+			ticker.Stop()
+		}()
 
 		for {
 			select {
 			case <-ticker.C:
+				ms.log.Tracef("UDSServer: checking keep alive timestamp")
+
 				ms.lastSeen.Range(func(key, value any) bool {
 					deviceID := key.(string)
 					lastSeenTimestamp := value.(time.Time)
 
-					server, err := ms.GetServer(deviceID)
-					if err != nil {
-						ms.log.Errorf("Failed to close expired Unix Domain Socket. %v", err)
-					}
+					if lastSeenTimestamp.Add(deleteIfOlderThen).After(time.Now()) { // Do last keep alive too old?
+						ms.log.Infof("%v is too old (max %v allowed). UDS of %s device is going to be deleted.", lastSeenTimestamp, deleteIfOlderThen, deviceID)
 
-					if server != nil && server.IsActive() {
-						err2 := ms.removeServer(deviceID)
-						if err2 != nil {
+						// Stop UDS server for the given device
+						server, err := ms.GetServer(deviceID)
+						if err != nil {
 							ms.log.Errorf("Failed to close expired Unix Domain Socket. %v", err)
 						}
-					}
 
-					if time.Now().Add(-1 * deleteIfOlderThen).Before(lastSeenTimestamp) {
+						if server != nil && server.IsActive() {
+							err2 := ms.removeServer(deviceID)
+							if err2 != nil {
+								ms.log.Errorf("Failed to close expired Unix Domain Socket. %v", err)
+							}
+						}
+
+						// Drop keep alive data
 						ms.lastSeen.Delete(deviceID)
 						ms.log.Debugf("Device expired: %s", deviceID)
 					}
 
-					return true // continue
+					return true // continue with rest of the keep alive timestamps
 				})
 			case <-ms.ctx.Done():
 				return
