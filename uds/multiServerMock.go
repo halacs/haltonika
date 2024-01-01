@@ -19,8 +19,7 @@ func (ms *MultiServerMock) StopAllServers() error {
 	return nil
 }
 
-func (ms *MultiServerMock) KeepAlive(deviceID string) (found bool, err error) {
-	return true, err
+func (ms *MultiServerMock) KeepAlive(deviceID string) {
 }
 
 func (ms *MultiServerMock) GetServer(deviceID string) (*Server, error) {

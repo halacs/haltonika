@@ -4,6 +4,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"sync"
+	"time"
+)
+
+const (
+	deleteIfOlderThen  = 1 * time.Hour
+	checkLastSeenEvery = 10 * time.Second
 )
 
 type MultiServerInterface interface {
@@ -11,7 +18,7 @@ type MultiServerInterface interface {
 	StartServer(deviceID string, toDevice, fromDevice chan string) (*Server, error)
 	StopServer(deviceID string) error
 	StopAllServers() error
-	KeepAlive(deviceID string) (found bool, err error)
+	KeepAlive(deviceID string)
 	GetServer(deviceID string) (*Server, error)
 }
 
@@ -20,13 +27,16 @@ type MultiServer struct {
 	servers  map[string]*Server
 	log      logrus.Logger
 	basePath string
+	lastSeen sync.Map
+	wg       *sync.WaitGroup
 }
 
-func NewMultiServer(ctx context.Context, basePath string) (*MultiServer, error) {
+func NewMultiServer(ctx context.Context, basePath string, wg *sync.WaitGroup) (*MultiServer, error) {
 	ms := &MultiServer{
 		ctx:      ctx,
 		servers:  make(map[string]*Server),
 		basePath: basePath,
+		wg:       wg,
 	}
 
 	return ms, nil
@@ -45,6 +55,8 @@ func (ms *MultiServer) StartServer(deviceID string, toDevice, fromDevice chan st
 	udsServer.SetToDeviceChannel(toDevice)
 
 	ms.setServerForDevice(deviceID, udsServer)
+
+	ms.keepAliveChecker()
 
 	return udsServer, nil
 }
@@ -85,48 +97,74 @@ func (ms *MultiServer) StopAllServers() error {
 	return nil
 }
 
-func (ms *MultiServer) KeepAlive(deviceID string) (found bool, err error) {
-	return false, nil // TODO implement
+func (ms *MultiServer) KeepAlive(deviceID string) {
+	key := deviceID
+	value := time.Now()
+	ms.lastSeen.Store(key, value)
 }
 
-/*
-func (ms *MultiServer) keepAliveChecker() error {
+func (ms *MultiServer) keepAliveChecker() {
+	ms.wg.Add(1)
 	go func() {
-		ticker := time.NewTicker(time.Second)
+		defer ms.wg.Done()
+
+		ticker := time.NewTicker(checkLastSeenEvery)
 		defer ticker.Stop()
 
 		for {
 			select {
 			case <-ticker.C:
-				ms.log.Warningf("Ticker fired - NOT IMPLEMENTED YET")
-				// TODO we should check here if there is a socket should be closed because of time out
+				ms.lastSeen.Range(func(key, value any) bool {
+					deviceID := key.(string)
+					lastSeenTimestamp := value.(time.Time)
+
+					server, err := ms.GetServer(deviceID)
+					if err != nil {
+						ms.log.Errorf("Failed to close expired Unix Domain Socket. %v", err)
+					}
+
+					if server != nil && server.IsActive() {
+						err2 := ms.removeServer(deviceID)
+						if err2 != nil {
+							ms.log.Errorf("Failed to close expired Unix Domain Socket. %v", err)
+						}
+					}
+
+					if time.Now().Add(-1 * deleteIfOlderThen).Before(lastSeenTimestamp) {
+						ms.lastSeen.Delete(deviceID)
+						ms.log.Debugf("Device expired: %s", deviceID)
+					}
+
+					return true // continue
+				})
 			case <-ms.ctx.Done():
 				return
 			}
 		}
 	}()
-
-	return nil
-}
-*/
-
-func (ms *MultiServer) setServerForDevice(deviceID string, server *Server) {
-	ms.servers[deviceID] = server
 }
 
-/*
-TODO implement udsServer cleanup based on timeout with keep alive calls
 func (ms *MultiServer) removeServer(deviceID string) error {
-	_, found := ms.servers[deviceID]
+	server, found := ms.servers[deviceID]
 	if !found {
 		return fmt.Errorf("no UDS server found for %s device ID", deviceID)
+	}
+
+	if server.IsActive() {
+		err := server.Stop()
+		if err != nil {
+			return fmt.Errorf("failed to stop server. %v", err)
+		}
 	}
 
 	delete(ms.servers, deviceID)
 
 	return nil
 }
-*/
+
+func (ms *MultiServer) setServerForDevice(deviceID string, server *Server) {
+	ms.servers[deviceID] = server
+}
 
 func (ms *MultiServer) GetServer(deviceID string) (*Server, error) {
 	server, found := ms.servers[deviceID]

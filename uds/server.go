@@ -136,6 +136,14 @@ func (us *Server) SetToDeviceChannel(c chan string) {
 	us.log.Debugf("Device TO channel has been set")
 }
 
+func (us *Server) IsActive() bool {
+	if us.listener == nil {
+		return false
+	}
+
+	return false
+}
+
 func (us *Server) Stop() error {
 	socketPath, err := us.getUdsName()
 	if err != nil {
