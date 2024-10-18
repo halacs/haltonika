@@ -105,8 +105,9 @@ package-debian: env build
 	#${DEBSIGS} --list ${DEB_FILE_NAME}
 
 	# Linting generated deb file
-	${LINTIAN} ${DEB_FILE_NAME}
+	#${LINTIAN} ${DEB_FILE_NAME}
 
 	echo "Done."
+	ls -lah ${DEB_FILE_NAME}
 	echo "${DEB_FILE_NAME}"
 

@@ -20,6 +20,8 @@ jobs:
         id: date
         run: echo "::set-output name=date::$(date --rfc-email)"
       - uses: actions/checkout@v3
+      - name: Debian Package
+        run: make package
       - uses: wangyoucao577/go-release-action@v1
         with:
           binary_name: "haltonika"
@@ -27,4 +29,5 @@ jobs:
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
           ldflags: "-X 'bisecur/cli/cmd.Version=${{  github.ref_name }}' -X 'bisecur/cli/cmd.BuildDate=${{ steps.date.outputs.date }}'"
+          extra_files: dist/*.deb
           #extra_files: LICENSE README.md
