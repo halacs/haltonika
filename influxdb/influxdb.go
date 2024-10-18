@@ -104,7 +104,7 @@ func (c *Connection) renderFields(avlData teltonikaparser.AvlData) map[string]in
 
 			// parse byte array as integer
 			value := binary.BigEndian.Uint64(raw)
-			fields[fmt.Sprintf("IOID%d", IOID)] = int(value) // TODO if value is not casted to int, influx drops parse error. Why?
+			fields[fmt.Sprintf("IOID%d", IOID)] = int(value) // #nosec G115 TODO if value is not casted to int, influx drops parse error. Why?
 		}
 	}
 
@@ -112,7 +112,7 @@ func (c *Connection) renderFields(avlData teltonikaparser.AvlData) map[string]in
 }
 
 func (c *Connection) renderTimesamp(avlData teltonikaparser.AvlData) time.Time {
-	return time.UnixMilli(int64(avlData.UtimeMs))
+	return time.UnixMilli(int64(avlData.UtimeMs)) // #nosec G115
 }
 
 func (c *Connection) insert(extraTags map[string]string, record teltonikaparser.Decoded) error {

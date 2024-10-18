@@ -275,7 +275,7 @@ func (s *Server) receiveBytes(listen *net.UDPConn) (int, []byte, *net.UDPAddr, e
 
 			log.Debugf("%d bytes received from %v", size, remote)
 
-			s.addReceivedBytes(uint64(size))
+			s.addReceivedBytes(uint64(size)) // #nosec G115
 
 			return size, buffer[:size], remote, nil
 		}
@@ -292,7 +292,7 @@ func (s *Server) sendBytes(listen *net.UDPConn, data []byte, remote *net.UDPAddr
 		return err
 	}
 
-	s.addSentBytes(uint64(size))
+	s.addSentBytes(uint64(size)) // #nosec G115
 	s.addSentPackages(1)
 
 	return nil
