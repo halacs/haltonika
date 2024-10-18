@@ -1,0 +1,25 @@
+[Unit]
+Description=Haltonika Server for Teltonika GPS trackers
+Documentation=https://github.com/halacs/haltonika
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=-mkdir /var/run/haltonika
+ExecStart=/usr/bin/haltonika
+ExecStop=/bin/kill -s SIGINT $MAINPID
+#User=haltonika
+#Group=haltonika
+Restart=always
+#NoNewPrivileges=true
+#ProtectSystem=strict
+#ReadWritePaths=/etc/haltonika/ /var/run/haltonika/
+WorkingDirectory=/etc/haltonika/
+PrivateTmp=true
+EnvironmentFile=-/etc/haltonika/config.env
+TimeoutSec=120
+
+[Install]
+WantedBy=multi-user.target
+
