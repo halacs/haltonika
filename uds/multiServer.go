@@ -128,8 +128,10 @@ func (ms *MultiServer) keepAliveChecker() {
 					deviceID := key.(string)
 					lastSeenTimestamp := value.(time.Time)
 
-					if lastSeenTimestamp.Add(deleteIfOlderThen).After(time.Now()) { // Do last keep alive too old?
-						ms.log.Infof("%v is too old (max %v allowed). UDS of %s device is going to be deleted.", lastSeenTimestamp, deleteIfOlderThen, deviceID)
+					now := time.Now()
+					toCompareDate := lastSeenTimestamp.Add(deleteIfOlderThen)
+					if toCompareDate.Before(now) { // Do last keep alive too old?
+						ms.log.Infof("%v (%d) is too old (max %v allowed - %v == %d). UDS of %s device is going to be deleted. Now: %v (%d)", lastSeenTimestamp, lastSeenTimestamp.Unix(), deleteIfOlderThen, toCompareDate, toCompareDate.Unix(), deviceID, now, now.Unix())
 
 						// Stop UDS server for the given device
 						server, err := ms.GetServer(deviceID)

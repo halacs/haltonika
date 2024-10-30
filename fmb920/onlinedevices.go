@@ -6,10 +6,11 @@ import (
 	"time"
 )
 
-func (s *Server) markDeviceOnline(remote *net.UDPAddr, imei string) error {
-	s.devicesByIMEI.Store(remote.String(), &DevicesWithTimeout{
+func (s *Server) markDeviceOnline(remote *net.UDPAddr, listener *net.UDPConn, imei string) error {
+	s.devices.Store(remote.String(), &DevicesWithTimeout{
 		Imei:      imei,
 		Remote:    remote,
+		Listener:  listener,
 		Timestamp: time.Now(),
 	})
 
@@ -21,10 +22,10 @@ func (s *Server) markDeviceOnline(remote *net.UDPAddr, imei string) error {
 func (s *Server) cleanupDevicesOnline() {
 	log := config.GetLogger(s.ctx)
 
-	s.devicesByIMEI.Range(func(k, value any) bool {
+	s.devices.Range(func(k, value any) bool {
 		item := value.(*DevicesWithTimeout)
 		if !item.Timestamp.Before(time.Now().Add(s.devicesByImeitimeout)) {
-			s.devicesByIMEI.Delete(k)
+			s.devices.Delete(k)
 			log.Debugf("Device with %s IMEI has been removed from map of online devices. Item's timestamp: %v", item.Imei, item.Timestamp)
 		}
 		return true // continue map iteration
@@ -48,8 +49,24 @@ func (s *Server) startPeriodicCleanupOnlineDevices() {
 	}()
 }
 
+func (s *Server) getOnlineDevice(imei string) (*DevicesWithTimeout, bool) {
+	var device *DevicesWithTimeout
+
+	// TODO: consider to store devices by IMEI to be more efficient but I have not much motivation to do so right now :)
+	s.devices.Range(func(k, value any) bool {
+		item := value.(*DevicesWithTimeout)
+		if item.Imei == imei {
+			device = item
+			return true // do NOT continue map iteration
+		}
+		return true // continue map iteration
+	})
+
+	return device, device != nil
+}
+
 func (s *Server) getOnlineDeviceEndpoint(remote *net.UDPAddr) (*DevicesWithTimeout, bool) {
-	value, ok := s.devicesByIMEI.Load(remote.String())
+	value, ok := s.devices.Load(remote.String())
 	if !ok {
 		return nil, false
 	}

@@ -263,7 +263,7 @@ func (us *Server) handleSocketToChannelDirection(conn net.Conn) {
 		_, err := conn.Read(buffer)
 		if err != nil {
 			if err == io.EOF {
-				us.log.Infof("UDS socket terminated.")
+				us.log.Infof("UDS socket connection terminated")
 				return // connection has been closed
 			}
 			if err != nil {

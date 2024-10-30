@@ -8,6 +8,7 @@ import (
 	"github.com/halacs/haltonika/config"
 	metrics2 "github.com/halacs/haltonika/metrics"
 	"github.com/halacs/haltonika/uds"
+	"github.com/sirupsen/logrus"
 	"net"
 	"slices"
 	"strings"
@@ -25,7 +26,7 @@ func NewServer(ctx context.Context, wg *sync.WaitGroup, host string, port int, a
 		metrics:              metrics,
 		allowedIMEIs:         allowedIMEIs,
 		processedPackets:     make(map[string]time.Time),
-		devicesByIMEI:        sync.Map{},
+		devices:              sync.Map{},
 		devicesByImeitimeout: 5 * time.Minute,
 		//commandResponses:     make(chan string),
 		//commandRequests:      make(chan string, 1),
@@ -33,6 +34,46 @@ func NewServer(ctx context.Context, wg *sync.WaitGroup, host string, port int, a
 	}
 
 	return server
+}
+
+func (s *Server) sendCommandToDevice(imei string) error {
+	log := config.GetLogger(s.ctx).WithField("imei", imei)
+
+	logrus.Tracef("Check if there is at least one command to be sent to device with %s IMEI", imei)
+
+	commandRequests, _, err := s.GetCommandRequestChannel(imei)
+	if err != nil {
+		return fmt.Errorf("failed to send command response to channel. %v", err)
+	}
+
+	// Check if there is a command to be sent and if yes send it to the device who send FF just now
+	select {
+	case commandStr := <-commandRequests:
+		log.Debugf("Command to be sent: %s", commandStr)
+
+		device, ok := s.getOnlineDevice(imei)
+		if !ok {
+			return fmt.Errorf("online device not found. %v", err)
+		}
+		listener := device.Listener
+		remote := device.Remote
+
+		command, err := teltonikaparser.EncodeCommandRequest(commandStr)
+		if err != nil {
+			return fmt.Errorf("failed to encode command. %v", err)
+		}
+
+		err = s.sendBytes(listener, command, remote)
+		if err != nil {
+			return fmt.Errorf("failed to send commands's bytes out. %v", err)
+		}
+
+		log.Infof("Command has been sent: %s", commandStr)
+	default:
+		log.Tracef("No command to be sent for this remote endpoint, for this device.")
+	}
+
+	return nil
 }
 
 func (s *Server) Start() error {
@@ -54,6 +95,46 @@ func (s *Server) Start() error {
 
 	s.startPeriodicCleanupOnlineDevices()
 
+	// start goroutine handling outgoing commands
+	s.wg.Add(1)
+	go func() {
+		log.Debug("Periodic command sender starting")
+
+		defer func() {
+			s.wg.Done()
+			log.Debug("Periodic command sender stopped")
+		}()
+
+		t := time.NewTicker(time.Second * 1) // check command queues every n seconds and send them out if there is any
+		defer func() {
+			t.Stop()
+		}()
+
+		for {
+			select {
+			case <-s.localCtx.Done():
+				return
+			case <-t.C:
+				log.Tracef("Periodic command sending triggered")
+				for _, imei := range s.allowedIMEIs {
+					err := s.sendCommandToDevice(imei)
+					if err != nil {
+						log.Errorf("Failed to send command to device. %v", err)
+
+						// Send error back to the user
+						commandResponses, _, err2 := s.GetCommandResponseChannel(imei)
+						if err2 != nil {
+							log.Errorf("Failed to send command response to channel. %v", err2)
+						} else {
+							commandResponses <- err.Error()
+						}
+					}
+				}
+			}
+		}
+	}()
+
+	// start goroutine processing incoming packets
 	s.wg.Add(1)
 	go func() {
 		defer func() {
@@ -76,7 +157,7 @@ func (s *Server) Start() error {
 			default:
 				size, buffer, remote, err := s.receiveBytes(listen)
 				if size <= 0 {
-					continue // context might be cancelled
+					continue // Context might be cancelled
 				}
 				if err != nil {
 					log.Errorf("failed to read from connection. %v", err)
@@ -85,7 +166,7 @@ func (s *Server) Start() error {
 
 				log.Tracef("%d bytes long packet received: %s", size, hex.EncodeToString(buffer))
 
-				// is it a heartbeat package?
+				// Is it a heartbeat package?
 				if size == 1 && strings.ToLower(hex.EncodeToString(buffer)) == "ff" {
 					value, ok := s.getOnlineDeviceEndpoint(remote)
 					if !ok {
@@ -95,28 +176,6 @@ func (s *Server) Start() error {
 
 					log.Debugf("Device with %s IMEI sent FF package.", value.Imei)
 
-					commandRequests, _, err := s.GetCommandRequestChannel(value.Imei)
-					if err != nil {
-						log.Errorf("Failed to send command response to channel. %v", err)
-					} else {
-						// Check if there is a command to be sent and if yes send it to the device who send FF just now
-						select {
-						case commandStr := <-commandRequests:
-							log.Infof("Command to be sent: %s", commandStr)
-							command, err := teltonikaparser.EncodeCommandRequest(commandStr)
-							if err != nil {
-								log.Errorf("Failed to encode command. %v", err)
-								continue
-							}
-
-							err = s.sendBytes(listen, command, remote)
-							if err != nil {
-								log.Errorf("Failed to send commands's bytes out. %v", err)
-							}
-						default:
-							log.Tracef("No command to be sent for this remote endpoint, for this device.")
-						}
-					}
 					continue
 				}
 
@@ -191,7 +250,7 @@ func (s *Server) Start() error {
 					log.Tracef("UdsServer for %s device is running at %s. %v", decodedAvl.IMEI, socketPath, server)
 				}
 
-				err = s.markDeviceOnline(remote, decodedAvl.IMEI)
+				err = s.markDeviceOnline(remote, listen, decodedAvl.IMEI)
 				if err != nil {
 					log.Errorf("Failed to mark device online. %v", err)
 				}

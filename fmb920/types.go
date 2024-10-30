@@ -18,6 +18,7 @@ type TeltonikaMessage struct {
 type DevicesWithTimeout struct {
 	Imei      string
 	Remote    *net.UDPAddr
+	Listener  *net.UDPConn
 	Timestamp time.Time
 }
 
@@ -43,7 +44,7 @@ type Server struct {
 	processedPackets map[string]time.Time
 
 	// Online devices by IMEI
-	devicesByIMEI                 sync.Map
+	devices                       sync.Map
 	devicesByImeitimeout          time.Duration
 	requestCommandChannelsByIMEI  sync.Map
 	responseCommandChannelsByIMEI sync.Map
