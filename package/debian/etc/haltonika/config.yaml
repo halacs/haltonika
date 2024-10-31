@@ -1,0 +1,14 @@
+database: haltonika
+debug: true
+imeilist: 111111111111111,222222222222222
+listenip: 0.0.0.0
+listenport: 9160
+measurement: gps
+metricsip: 0.0.0.0
+metricsport: 9161
+mp: haltonika.met
+password: "123"
+udsbasepath: /var/run/haltonika/
+url: http://localhost:8086
+username: haltonika
+verbose: true

@@ -24,7 +24,7 @@ func parseConfig() *config.Config {
 	log := config.NewLogger()
 
 	// Read configuration
-	viper.SetConfigName("cfg")                                     // Name of cfg file (without extension)
+	viper.SetConfigName("config")                                  // Name of cfg file (without extension)
 	viper.SetConfigType("yaml")                                    // REQUIRED if the cfg file does not have the extension in the name
 	viper.AddConfigPath(fmt.Sprintf("/etc/%s/", config.AppName))   // path to look for the cfg file in
 	viper.AddConfigPath(fmt.Sprintf("$HOME/.%s/", config.AppName)) // call multiple times to add many search paths
@@ -35,8 +35,8 @@ func parseConfig() *config.Config {
 	err := viper.ReadInConfig() // Find and read the cfg file
 	if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 		log.Infof("Config file was not found. Using defaults.")
-	} else {
-		log.Fatalf("Failed to parse cfg file. %v", err)
+	} else if err != nil {
+		log.Errorf("Failed to parse cfg file. %v", err)
 	}
 
 	// General configs
@@ -101,6 +101,15 @@ func parseConfig() *config.Config {
 
 	udsServerConfig := &config.UdsServerConfig{
 		BasePath: viper.GetString(config.UdsServerConfigBasePath),
+	}
+
+	err = viper.SafeWriteConfig()
+	if _, ok := err.(viper.ConfigFileAlreadyExistsError); ok {
+		log.Tracef("Config file already exists. %v", err)
+	} else if err != nil {
+		log.Errorf("Failed to write config file. %v", err)
+	} else {
+		log.Debug("Config has been file created")
 	}
 
 	cfg := config.NewConfig(log, influxConfig, teltonikaConfig, metricsConfig, udsServerConfig)

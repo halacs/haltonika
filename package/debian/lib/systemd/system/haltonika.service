@@ -17,7 +17,6 @@ Restart=always
 #ReadWritePaths=/etc/haltonika/ /var/run/haltonika/
 WorkingDirectory=/etc/haltonika/
 PrivateTmp=true
-EnvironmentFile=-/etc/haltonika/config.env
 TimeoutSec=120
 
 [Install]

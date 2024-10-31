@@ -70,7 +70,7 @@ func (s *Server) sendCommandToDevice(imei string) error {
 
 		log.Infof("Command has been sent: %s", commandStr)
 	default:
-		log.Tracef("No command to be sent for this remote endpoint, for this device.")
+		log.Tracef("No command to be sent for this device")
 	}
 
 	return nil
