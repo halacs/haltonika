@@ -49,7 +49,7 @@ test-short:
 	go test ${VENDOR} -race -short
 
 build: env
-	CGO_ENABLED=0 go build -v -o ${DIST}/${APPNAME} .
+	CGO_ENABLED=0 go build -ldflags "-X 'github.com/halacs/haltonika/version.Version=?version?' -X 'github.com/halacs/haltonika/version.BuildDate=?date?'" -v -o ${DIST}/${APPNAME} .
 
 .PHONY: package
 package:

@@ -10,6 +10,7 @@ import (
 	m "github.com/halacs/haltonika/metrics"
 	mi "github.com/halacs/haltonika/metrics/impl"
 	"github.com/halacs/haltonika/uds"
+	"github.com/halacs/haltonika/version"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -171,6 +172,7 @@ func main() {
 	cfg := parseConfig()
 
 	log := cfg.GetLogger()
+	log.Infof("Haltonika version %s (%s)", version.Version, version.BuildDate)
 	log.Tracef("Used InfluxDB client configuration: %+v", cfg.GetInfluxConfig())
 	log.Tracef("Used Teltonika server configuration: %+v", cfg.GetTeltonikaConfig())
 	log.Tracef("Used metrics configuration: %+v", cfg.GetMetricsConfig())

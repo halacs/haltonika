@@ -28,6 +28,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
-          ldflags: "-X 'bisecur/cli/cmd.Version=${{  github.ref_name }}' -X 'bisecur/cli/cmd.BuildDate=${{ steps.date.outputs.date }}'"
+          ldflags: "-X 'github.com/halacs/haltonika/version.Version=${{  github.ref_name }}' -X 'github.com/halacs/haltonika/version.BuildDate=${{ steps.date.outputs.date }}'"
           extra_files: dist/*.deb
           #extra_files: LICENSE README.md
