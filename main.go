@@ -33,10 +33,12 @@ func parseConfig() *config.Config {
 	viper.AutomaticEnv() // Use environment variables if defined
 
 	err := viper.ReadInConfig() // Find and read the cfg file
-	if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-		log.Infof("Config file was not found. Using defaults.")
-	} else if err != nil {
-		log.Errorf("Failed to parse cfg file. %v", err)
+	if err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			log.Infof("Config file was not found. Using defaults.")
+		} else {
+			log.Errorf("Failed to parse cfg file. %v", err)
+		}
 	}
 
 	// General configs
@@ -104,12 +106,14 @@ func parseConfig() *config.Config {
 	}
 
 	err = viper.SafeWriteConfig()
-	if _, ok := err.(viper.ConfigFileAlreadyExistsError); ok {
-		log.Tracef("Config file already exists. %v", err)
-	} else if err != nil {
-		log.Errorf("Failed to write config file. %v", err)
+	if err != nil {
+		if _, ok := err.(viper.ConfigFileAlreadyExistsError); ok {
+			log.Tracef("Config file already exists. %v", err)
+		} else {
+			log.Errorf("Failed to write config file. %v", err)
+		}
 	} else {
-		log.Debug("Config has been file created")
+		log.Info("Config has been file created")
 	}
 
 	cfg := config.NewConfig(log, influxConfig, teltonikaConfig, metricsConfig, udsServerConfig)
