@@ -9,9 +9,9 @@ TEMP_DIR=temp
 DEPS_DIR=${DIST}
 SRC_DIR_DEBIAN=package/debian
 ARCH=amd64
-VERSION=1.1.0
+VERSION=1.1.2
 # Revision of the package file
-REVISION=1.1.0
+REVISION=1.2.0
 # Location of package files
 DEB_DIR=${TEMP_DIR}/deb
 # <name>_<version>-<revision>_<architecture>.deb

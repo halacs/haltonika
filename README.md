@@ -35,11 +35,23 @@ Data Link: 1 GPRS: 1 Phone: 0 SIM: 0 OP: 21630 Signal: 4 NewSMS: 0 Roaming: 0 SM
 ^C
 ```
 
+# Install from package
+Currently only Debian and its derivatives (such as Ubuntu) are supported from package. Tested only on Ubuntu.
+
+To install Haltonika from package, use Debian package from releases published here or install Debian package from apt.halacs.hu repository.
+
+To add apt.halacs.hu Debian repository follow the instructions at https://apt.halacs.hu/apt/ page then
+```
+sudo apt install haltonika
+```
+
+At the end, don't forget to check configuration file in /etc/haltonika directory.
+
 # Build from source
 Build requirements:
-- GO 1.19.1
+- GO 1.23.2
 - make
-- Ubuntu linux 22.04 LTS (or compatible Debian variant)
+- Ubuntu linux 24.04 LTS (or compatible Debian variant)
 
 When above requirements are met, build itself is as simple as a ```make``` command from the project root.
 

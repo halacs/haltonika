@@ -1,3 +1,11 @@
 #!/bin/bash -e
-systemctl enable --now haltonika
-#systemctl status haltonika
+
+if [ "$1" = configure ]; then
+   INITSYS=$(ls -al /proc/1/exe | awk -F' ' '{print $NF}' | awk -F'/' '{print $NF}')
+
+   if [ "systemd" == "$INITSYS" ]; then
+      systemctl daemon-reload
+      systemctl enable haltonika
+      systemctl start haltonika
+   fi
+fi
