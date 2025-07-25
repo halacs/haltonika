@@ -1,3 +1,5 @@
+<a href="https://www.buymeacoffee.com/halacs" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
 # Overview
 
 With this project, you can receive messages from Teltonika FMB920[^1] GPS tracer and store them in an InfluxDB[^2] database.
