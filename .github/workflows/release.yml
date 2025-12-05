@@ -1,33 +1,32 @@
+name: Release
+
 on:
   release:
-    types: [created]
+    types: [ published ]
 
 permissions:
   contents: write
   packages: write
 
 jobs:
-  releases-matrix:
-    name: Release Go Binary
+  goreleaser:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        # build and publish in parallel: linux/386, linux/amd64, linux/arm64, windows/386, windows/amd64
-        goos: [linux]
-        goarch: ["386", amd64]
     steps:
-      - name: Get current date
-        id: date
-        run: echo "::set-output name=date::$(date --rfc-email)"
-      - uses: actions/checkout@v3
-      - name: Debian Package
-        run: make package
-      - uses: wangyoucao577/go-release-action@v1
+      - uses: actions/checkout@v4
         with:
-          binary_name: "haltonika"
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          goos: ${{ matrix.goos }}
-          goarch: ${{ matrix.goarch }}
-          ldflags: "-X 'github.com/halacs/haltonika/version.Version=${{  github.ref_name }}' -X 'github.com/halacs/haltonika/version.BuildDate=${{ steps.date.outputs.date }}'"
-          extra_files: dist/*.deb
-          #extra_files: LICENSE README.md
+          fetch-depth: 0
+      - run: git fetch --force --tags
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Generate release notes
+        continue-on-error: true
+        run: ./scripts/release-notes.sh ${{github.ref_name}} > ${{runner.temp}}/release_notes.txt
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean --release-notes=${{runner.temp}}/release_notes.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

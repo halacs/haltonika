@@ -1,9 +1,0 @@
-#!/bin/bash -e
-
-case $1 in
-    purge)
-      rm -rf /etc/haltonika || true
-      ;;
-esac
-
-exit 0

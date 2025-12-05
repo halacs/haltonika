@@ -3,13 +3,14 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"github.com/halacs/haltonika/config"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/halacs/haltonika/config"
+	"github.com/sirupsen/logrus"
 )
 
 type MetricProvider interface {
@@ -42,7 +43,7 @@ func NewServer(ctx context.Context, wg *sync.WaitGroup, cfg *config.MetricsConfi
 }
 
 func (s *Server) metricsHandler(w http.ResponseWriter, req *http.Request) {
-	//log := config.GetLogger(s.ctx)
+	log := config.GetLogger(s.ctx)
 	//log.Tracef("Serving metrics request")	// generates too much log
 
 	for _, renderer := range s.renderers {
@@ -72,7 +73,10 @@ func (s *Server) metricsHandler(w http.ResponseWriter, req *http.Request) {
 		rawMetrics := fmt.Sprintf("%s,%s %s %d\n", metricName, tags, fields, timestamp)
 
 		// Send line to the HTTP client
-		fmt.Fprint(w, rawMetrics)
+		_, err := fmt.Fprint(w, rawMetrics)
+		if err != nil {
+			log.Errorf("failed to send line to HTTP client. %s", err)
+		}
 	}
 }
 

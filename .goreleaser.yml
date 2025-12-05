@@ -1,0 +1,69 @@
+version: 2
+
+project_name: haltonika
+
+before:
+  hooks:
+    - go mod tidy
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"
+
+builds:
+  - id: "haltonika"
+    main: .
+    binary: haltonika
+    ldflags:
+      - -s -w -X github.com/halacs/haltonika/version.Version={{ .Tag }} -X github.com/halacs/haltonika/version.BuildDate={{ .Date }}
+    goos:
+      - "linux"
+      - "windows"
+      - "darwin"
+    goarch:
+      - "386"
+      - "amd64"
+      - "arm64"
+    env:
+      - CGO_ENABLED=0
+
+archives:
+  - id: default
+    ids:
+      - haltonika
+    formats: [ 'binary' ]
+    name_template: >-
+      {{ .ProjectName }}_{{- tolower .Os }}_{{ .Arch }}
+
+nfpms:
+  - id: haltonika-deb
+    package_name: haltonika
+    vendor: "halacs.hu"
+    homepage: "https://halacs.hu/"
+    maintainer: "Gábor Nyíri (halacs.hu)"
+    description: "Microservice to collect data from Teltonika GPS devices."
+    license: "MIT"
+    formats:
+      - deb
+    # Only create packages for linux/amd64
+    ids:
+      - "haltonika"
+    bindir: /usr/bin
+    contents:
+      - src: ./LICENSE
+        dst: /usr/share/doc/haltonika/copyright
+      - src: ./haltonika.service
+        dst: /lib/systemd/system/haltonika.service
+      - src: ./config.yaml.sample
+        dst: /etc/haltonika/config.yaml
+        type: config
+    # Custom filename like: haltonika_linux_1.2.3_amd64.deb
+    file_name_template: "{{ .PackageName }}_{{ .Os }}_{{ .Version }}_{{ .Arch }}.{{ .Format }}"
+    scripts:
+      postinstall: ./postinstall.sh
+      preremove: ./preremove.sh
+      postremove: ./postremove.sh
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  use: github-native

@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/filipkroca/teltonikaparser v0.0.0-20220306184017-d387dc15c2c8
 	github.com/influxdata/influxdb1-client v0.0.0-20220302092344-a9ab5670611c
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.13.0
 )
