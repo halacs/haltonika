@@ -6,6 +6,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [v1.1.1]
+
+### Changed
+- Improved post install script in the Debian package to make it more robust when upgrade
+
 ## [v1.1.0]
 
 ### Added
