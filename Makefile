@@ -36,5 +36,5 @@ test-short:
 	go test ${VENDOR} -race -short
 
 build: env
-	CGO_ENABLED=0 go build -ldflags "-X 'github.com/halacs/haltonika/version.Version=${VERSION}' -X 'github.com/halacs/haltonika/version.BuildDate=${BUILD_DATE}'" -v -o ${DIST}/${APPNAME} .
+	CGO_ENABLED=0 go build -trimpath -ldflags "-X 'github.com/halacs/haltonika/version.Version=${VERSION}' -X 'github.com/halacs/haltonika/version.BuildDate=${BUILD_DATE}'" -v -o ${DIST}/${APPNAME} .
 
