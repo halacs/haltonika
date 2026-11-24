@@ -5,11 +5,12 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"time"
+
 	"github.com/filipkroca/teltonikaparser"
 	"github.com/halacs/haltonika/config"
 	_ "github.com/influxdata/influxdb1-client" // this is important because of the bug in go mod
 	client "github.com/influxdata/influxdb1-client/v2"
-	"time"
 )
 
 type Connection struct {
@@ -115,10 +116,17 @@ func (c *Connection) renderTimesamp(avlData teltonikaparser.AvlData) time.Time {
 	return time.UnixMilli(int64(avlData.UtimeMs)) // #nosec G115
 }
 
-func (c *Connection) insert(extraTags map[string]string, record teltonikaparser.Decoded) error {
+func (c *Connection) renderExtraTags(tags map[string]string, extraTags map[string]string) {
 	log := config.GetLogger(c.ctx)
 
-	tags := c.renderTags(record)
+	if tags == nil {
+		tags = make(map[string]string)
+	}
+
+	if tags == nil {
+		return
+	}
+
 	for k, v := range extraTags {
 		_, ok := tags[k]
 		if ok {
@@ -128,6 +136,35 @@ func (c *Connection) insert(extraTags map[string]string, record teltonikaparser.
 
 		tags[k] = v
 	}
+}
+
+func (c *Connection) renderExtraFields(fields map[string]interface{}, extraFields map[string]interface{}) {
+	log := config.GetLogger(c.ctx)
+
+	if fields == nil {
+		fields = make(map[string]interface{})
+	}
+
+	if extraFields == nil {
+		return
+	}
+
+	for k, v := range extraFields {
+		_, ok := fields[k]
+		if ok {
+			log.Warningf("'%s' key already exist in record related fields. Ignore it in extra fields list.", k)
+			continue
+		}
+
+		fields[k] = v
+	}
+}
+
+func (c *Connection) insert(extraTags map[string]string, extraFields map[string]interface{}, record teltonikaparser.Decoded) error {
+	log := config.GetLogger(c.ctx)
+
+	tags := c.renderTags(record)
+	c.renderExtraTags(tags, extraTags)
 
 	batchPointsConfig := client.BatchPointsConfig{
 		Database: c.database,
@@ -141,6 +178,7 @@ func (c *Connection) insert(extraTags map[string]string, record teltonikaparser.
 	log.Debugf("Processing %d AVL data record.", len(record.Data))
 	for _, data := range record.Data {
 		fields := c.renderFields(data)
+		c.renderExtraFields(fields, extraFields)
 		timestamp := c.renderTimesamp(data)
 
 		point, err := client.NewPoint(c.measurement, tags, fields, timestamp)
@@ -165,8 +203,8 @@ func (c *Connection) insert(extraTags map[string]string, record teltonikaparser.
 
 }
 
-func (c *Connection) InsertMessage(record teltonikaparser.Decoded, extraTags map[string]string) error {
-	err := c.insert(extraTags, record)
+func (c *Connection) InsertMessage(record teltonikaparser.Decoded, extraTags map[string]string, extraFields map[string]interface{}) error {
+	err := c.insert(extraTags, extraFields, record)
 	if err != nil {
 		return fmt.Errorf("influxdb insert was failed. %v", err)
 	}

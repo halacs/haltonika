@@ -4,6 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
+	"strings"
+	"sync"
+
 	"github.com/halacs/haltonika/config"
 	"github.com/halacs/haltonika/fmb920"
 	influxdb2 "github.com/halacs/haltonika/influxdb"
@@ -14,10 +19,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"os"
-	"os/signal"
-	"strings"
-	"sync"
 )
 
 func parseConfig() *config.Config {
@@ -203,10 +204,13 @@ func main() {
 		log.Debugf("PACKET ARRIVED: %+v", message)
 
 		// Insert new record into InfluxDB
-		tags := map[string]string{
+		extraTags := map[string]string{}
+
+		extraFields := map[string]interface{}{
 			influxdb2.SourceTag: message.SourceAddress,
 		}
-		err := influxdb.InsertMessage(message.Decoded, tags)
+
+		err := influxdb.InsertMessage(message.Decoded, extraTags, extraFields)
 		if err != nil {
 			log.Errorf("Failed to close influxdb connection. %v", err)
 		}

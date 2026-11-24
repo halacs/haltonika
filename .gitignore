@@ -1,8 +1,9 @@
-/.idea
+.idea
+skils/**
+skills
+dist/**
 
-/dist/**
+haltonika.met
+haltonika
 
-/haltonika.met
-/haltonika
-
-/temp
+temp

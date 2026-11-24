@@ -3,10 +3,11 @@ package influxdb
 import (
 	"context"
 	"encoding/hex"
+	"testing"
+
 	"github.com/filipkroca/teltonikaparser"
 	cfg "github.com/halacs/haltonika/config"
 	"github.com/sirupsen/logrus"
-	"testing"
 )
 
 func TestConnect(t *testing.T) {
@@ -56,7 +57,12 @@ func TestConnect(t *testing.T) {
 				SourceTag: "127.0.0.1:1234",
 			}
 
-			err = client.InsertMessage(decoded, extraTags)
+			extraFields := map[string]interface{}{
+				"extraField0": "extraValue0",
+				"extraField1": 123,
+			}
+
+			err = client.InsertMessage(decoded, extraTags, extraFields)
 			if err != nil {
 				test.Logf("Error: %v", err)
 				test.Fail()
