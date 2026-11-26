@@ -6,6 +6,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [v1.1.2]
+
 ### Fixed
 - Store packet source address as an InfluxDB field instead of a tag to avoid high series cardinality
 
